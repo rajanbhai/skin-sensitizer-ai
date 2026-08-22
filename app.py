@@ -71,10 +71,15 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# HYBRID RESOLVER (EXTENSIVE OFFLINE REGISTRY + DYNAMIC CAS RETRIEVAL)
+# HYBRID RESOLVER (EXPANDED BENCHMARK & HAIR DYE / PROHAPTEN REGISTRY)
 # =====================================================================
 class UniversalChemicalResolver:
     STATIC_REGISTRY = {
+        # Hair Dyes, Diamines & Extreme Sensitizers
+        "106-50-3": {"name": "p-Phenylenediamine (PPD)", "smiles": "NC1=CC=C(N)C=C1", "cid": 7814},
+        "615-50-9": {"name": "Toluene-2,5-diamine", "smiles": "CC1=C(N)C=CC(N)=C1", "cid": 12005},
+        "59-66-5": {"name": "p-Aminophenol", "smiles": "NC1=CC=C(O)C=C1", "cid": 403},
+        "123-30-8": {"name": "p-Aminophenol (4-AP)", "smiles": "NC1=CC=C(O)C=C1", "cid": 403},
         # Natural Glycosides & Sweeteners
         "58543-16-1": {"name": "Rebaudioside A", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O)(C)C(=O)O[C@H]8[C@@H]([C@H]([C@@H]([C@H](O8)CO)O)O)O", "cid": 6918840},
         "57817-89-7": {"name": "Stevioside", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O)(C)C(=O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O", "cid": 442089},
@@ -130,7 +135,7 @@ class UniversalChemicalResolver:
         if not query:
             return None
 
-        # Tier 1: Local Static Registry Check
+        # Tier 1: Local Static Registry Check (Zero Network Latency / 100% Reliable)
         if query in UniversalChemicalResolver.STATIC_REGISTRY:
             hit = UniversalChemicalResolver.STATIC_REGISTRY[query]
             return {
@@ -231,7 +236,7 @@ class UniversalChemicalResolver:
 
 
 # =====================================================================
-# MULTI-AGENT ENGINES
+# MULTI-AGENT ENGINES (INCLUDES PROHAPTEN PPD BIOACTIVATION)
 # =====================================================================
 class ChemistAgent:
     OECD_SMARTS = {
@@ -245,6 +250,7 @@ class ChemistAgent:
         "SNAr_Nitro_Haloaromatic": "c1([N+](=O)[O-])cc([Cl,Br,F])ccc1",
         "Acyl_Transfer_Halide": "[CX3](=[OX1])[Cl,Br,I]",
         "Acyl_Transfer_Isocyanate": "[NX2]=[CX2]=[OX1]",
+        "Prohapten_p_Phenylenediamine_Diamine": "c1cc(N)ccc1N",
         "Prohapten_Aromatic_Primary_Amine": "c1ccccc1[NX3H2]",
         "Prohapten_Bisphenol_Core": "c1cc(O)ccc1Cc2ccc(O)cc2",
     }
@@ -267,17 +273,24 @@ class ChemistAgent:
                     "alerts": [f"Inorganic_Metal_Sensitizer: {desc}"],
                     "mechanisms": ["Metal Chelation", "TLR4 Direct Receptor Crosslinking"],
                     "is_metal": True,
+                    "is_extreme_prohapten": False,
                 }
 
         if not chem.mol:
-            return {"status": "ERROR", "alerts": [], "mechanisms": ["Invalid Molecule"], "is_metal": False}
+            return {"status": "ERROR", "alerts": [], "mechanisms": ["Invalid Molecule"], "is_metal": False, "is_extreme_prohapten": False}
 
         hits = [name for name, pat in self.patterns.items() if chem.mol.HasSubstructMatch(pat)]
+        is_ppd = any("p_Phenylenediamine" in h for h in hits)
+        mechanisms = list(set([h.split("_")[0] for h in hits])) if hits else ["Unreactive (Non-Electrophilic)"]
+        if is_ppd:
+            mechanisms.append("Oxidative Bioactivation to Bandrowski's Base (Extreme Hapten)")
+
         return {
             "status": "ALERT_FOUND" if hits else "NO_ALERTS",
             "alerts": hits,
-            "mechanisms": list(set([h.split("_")[0] for h in hits])) if hits else ["Unreactive (Non-Electrophilic)"],
+            "mechanisms": mechanisms,
             "is_metal": False,
+            "is_extreme_prohapten": is_ppd,
         }
 
 
@@ -285,8 +298,13 @@ class ToxicologistAgent:
     def evaluate(self, chem: ChemicalProfile, chem_data: Dict[str, Any], has_h317: bool) -> Dict[str, Any]:
         has_alerts = chem_data["status"] == "ALERT_FOUND"
         is_metal = chem_data.get("is_metal", False)
+        is_ppd = chem_data.get("is_extreme_prohapten", False)
 
-        if is_metal:
+        if is_ppd:
+            # PPD oxidizes to benzoquinonediimine, causing extreme cellular activation
+            ke1, ke2, ke3 = 0.92, 0.95, 0.96
+            pathway = "Oxidative Autoactivation & Extreme DC Upregulation (Bandrowski's Base)"
+        elif is_metal:
             ke1, ke2, ke3 = 0.90, 0.85, 0.92
             pathway = "TLR4 Receptor Activation & Nrf2 Pathway"
         elif has_alerts or has_h317:
@@ -302,6 +320,7 @@ class ToxicologistAgent:
             "KE3_hCLAT": ke3,
             "pathway": pathway,
             "is_metal": is_metal,
+            "is_extreme": is_ppd,
         }
 
 
@@ -316,7 +335,7 @@ class StatisticianAgent:
         else:
             in_ad = (chem.mw <= 500.0) and (-2.5 <= chem.log_p <= 5.5) and (chem.tpsa <= 140.0)
             ad_label = "IN_DOMAIN" if in_ad else "OUT_OF_DOMAIN (High MW or Polarity)"
-            conf = 0.88 if in_ad else 0.65
+            conf = 0.95 if tox_data.get("is_extreme") else (0.88 if in_ad else 0.65)
 
         return {
             "score": round(score, 3),
@@ -332,8 +351,15 @@ class RegulatoryAgent:
         hits = sum(1 for v in [tox_data["KE1_DPRA"], tox_data["KE2_KeratinoSens"], tox_data["KE3_hCLAT"]] if v >= 0.5)
 
         if is_sens:
-            ghs = "GHS Category 1A (Strong Metal Allergen)" if tox_data.get("is_metal") else ("GHS Category 1A (Strong)" if stat_data["score"] > 0.85 else "GHS Category 1B (Moderate)")
-            next_action = "Inorganic allergen: Human Patch Test / Clinical Data Precedent." if tox_data.get("is_metal") else "Execute OECD TG 442C (DPRA) & OECD TG 442D (KeratinoSens) for 2-of-3 Defined Approach."
+            if tox_data.get("is_extreme") or stat_data["score"] >= 0.90:
+                ghs = "GHS Category 1A (Strong/Extreme Sensitizer)"
+                next_action = "Extreme contact allergen precedent (OECD TG 442C/D/E concordance). Strict exposure controls required."
+            elif tox_data.get("is_metal"):
+                ghs = "GHS Category 1A (Strong Metal Allergen)"
+                next_action = "Inorganic allergen: Human Patch Test / Clinical Data Precedent."
+            else:
+                ghs = "GHS Category 1B (Moderate Sensitizer)"
+                next_action = "Execute OECD TG 442C (DPRA) & OECD TG 442D (KeratinoSens) for 2-of-3 Defined Approach."
         else:
             ghs = "GHS Not Classified (Non-Sensitizer)"
             next_action = "2 concordant negative in vitro assays required for regulatory dossier sign-off."
@@ -511,7 +537,7 @@ tab_single, tab_sketch, tab_batch = st.tabs([
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="58543-16-1")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="106-50-3")
     with col_btn:
         st.write("")
         st.write("")
@@ -566,7 +592,7 @@ with tab_sketch:
     components.html(jsme_html, height=450)
 
     st.markdown("#### Submit Sketched Structure")
-    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="C1=CC=C(C=C1)C(=O)O")
+    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="NC1=CC=C(N)C=C1")
     if st.button("🚀 Predict from Sketched Structure", type="primary"):
         with st.spinner("Analyzing sketched molecule..."):
             res = process_single_chemical(sketched_smiles)
@@ -583,8 +609,8 @@ with tab_batch:
     st.write("File must contain at least one column labeled `CAS`, `CASRN`, `Name`, `Compound`, or `SMILES`.")
 
     sample_df = pd.DataFrame({
-        "CAS": ["58543-16-1", "620-92-8", "65-85-0", "7440-02-0", "62-53-3", "79-06-1"],
-        "Compound_Name": ["Rebaudioside A", "Bisphenol F", "Benzoic acid", "Nickel", "Aniline", "Acrylamide"],
+        "CAS": ["106-50-3", "58543-16-1", "620-92-8", "65-85-0", "7440-02-0", "62-53-3", "79-06-1"],
+        "Compound_Name": ["p-Phenylenediamine", "Rebaudioside A", "Bisphenol F", "Benzoic acid", "Nickel", "Aniline", "Acrylamide"],
     })
     csv_template = sample_df.to_csv(index=False).encode("utf-8")
     st.download_button(
