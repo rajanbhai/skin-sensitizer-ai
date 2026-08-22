@@ -49,83 +49,112 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# RESILIENT MULTI-TIER CHEMICAL RESOLVER
+# DEDICATED CAS & IUPAC CHEMICAL RESOLVER
 # =====================================================================
 class PubChemResolver:
-    # Built-in local offline cache for benchmark toxicological substances
     OFFLINE_BENCHMARK_CACHE = {
+        "79-10-7": {"name": "Acrylic acid", "smiles": "C=CC(=O)O", "cid": 6581},
         "111-44-4": {"name": "Bis(2-chloroethyl) ether", "smiles": "ClCCOCCCl", "cid": 8107},
         "50-00-0": {"name": "Formaldehyde", "smiles": "C=O", "cid": 712},
         "106-99-0": {"name": "1,3-Butadiene", "smiles": "C=CC=C", "cid": 7845},
         "78-70-6": {"name": "Linalool", "smiles": "CC(=CCCC(C)(C=C)O)C", "cid": 6549},
         "97-53-0": {"name": "Eugenol", "smiles": "COC1=C(C=CC(=C1)CC=C)O", "cid": 3314},
         "107-02-8": {"name": "Acrolein", "smiles": "C=CC=O", "cid": 7847},
-        "101-68-8": {"name": "4,4'-Methylenediphenyl diisocyanate", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)N=C=O)N=C=O", "cid": 7570},
+        "101-68-8": {"name": "4,4'-MDI", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)N=C=O)N=C=O", "cid": 7570},
         "586-62-9": {"name": "Terpinolene", "smiles": "CC1=CCC(=C(C)C)CC1", "cid": 11463},
         "118-58-1": {"name": "Benzyl salicylate", "smiles": "C1=CC=C(C=C1)COC(=O)C2=CC=CC=C2O", "cid": 8363},
         "149-30-4": {"name": "2-Mercaptobenzothiazole", "smiles": "C1=CC=C2C(=C1)NC(=S)S2", "cid": 8989},
+        "107-13-1": {"name": "Acrylonitrile", "smiles": "C=CC#N", "cid": 7855},
+        "80-62-6": {"name": "Methyl methacrylate", "smiles": "CC(=C)C(=O)OC", "cid": 6658},
     }
 
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "SkinSensitizationBot/2.0 (OECD GL 497 Research Engine; contact: rd@example.com)"
     }
 
     @staticmethod
+    def _fetch_props_by_cid(cid: int, default_name: str) -> Optional[Dict[str, Any]]:
+        try:
+            prop_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/IUPACName,CanonicalSMILES/JSON"
+            r = requests.get(prop_url, headers=PubChemResolver.HEADERS, timeout=8)
+            if r.status_code == 200:
+                data = r.json().get("PropertyTable", {}).get("Properties", [])
+                if data:
+                    return {
+                        "cid": cid,
+                        "name": data[0].get("IUPACName", default_name),
+                        "smiles": data[0].get("CanonicalSMILES"),
+                    }
+        except Exception:
+            pass
+        return None
+
+    @staticmethod
     def resolve_input(identifier: str) -> Optional[Dict[str, Any]]:
-        """Multi-tiered resolver supporting Cache, SMILES, PubChem, OPSIN, and NIH CIR."""
         ident = str(identifier).strip()
         if not ident:
             return None
 
-        # Tier 1: Local Cache check
+        # 1. Direct Cache lookup
         if ident in PubChemResolver.OFFLINE_BENCHMARK_CACHE:
-            cached = PubChemResolver.OFFLINE_BENCHMARK_CACHE[ident]
-            return {"cid": cached.get("cid"), "name": cached["name"], "smiles": cached["smiles"]}
+            item = PubChemResolver.OFFLINE_BENCHMARK_CACHE[ident]
+            return {"cid": item.get("cid"), "name": item["name"], "smiles": item["smiles"]}
 
-        # Check by lowercase name in cache
         for k, v in PubChemResolver.OFFLINE_BENCHMARK_CACHE.items():
             if ident.lower() == v["name"].lower():
                 return {"cid": v.get("cid"), "name": v["name"], "smiles": v["smiles"]}
 
-        # Tier 2: Direct SMILES verification
+        # 2. Check if valid SMILES
         mol = Chem.MolFromSmiles(ident)
         if mol:
-            return {"cid": None, "name": "Custom Molecule", "smiles": ident}
+            return {"cid": None, "name": "Custom Structure", "smiles": ident}
 
-        # Tier 3: PubChem PUG-REST with robust parameters
+        # 3. CAS Registry Number dedicated PubChem endpoint (XRef RN)
+        if "-" in ident:
+            try:
+                rn_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/xref/rn/{ident}/cids/JSON"
+                r_rn = requests.get(rn_url, headers=PubChemResolver.HEADERS, timeout=8)
+                if r_rn.status_code == 200:
+                    cids = r_rn.json().get("IdentifierList", {}).get("CID", [])
+                    if cids:
+                        res = PubChemResolver._fetch_props_by_cid(cids[0], ident)
+                        if res:
+                            return res
+            except Exception:
+                pass
+
+        # 4. Standard Name/Synonym PubChem endpoint
         try:
-            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(ident)}/property/IUPACName,CanonicalSMILES/JSON"
-            r = requests.get(url, headers=PubChemResolver.HEADERS, timeout=6)
-            if r.status_code == 200:
-                props = r.json().get("PropertyTable", {}).get("Properties", [])
-                if props:
-                    return {
-                        "cid": props[0].get("CID"),
-                        "name": props[0].get("IUPACName", ident),
-                        "smiles": props[0].get("CanonicalSMILES"),
-                    }
+            name_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(ident)}/cids/JSON"
+            r_name = requests.get(name_url, headers=PubChemResolver.HEADERS, timeout=8)
+            if r_name.status_code == 200:
+                cids = r_name.json().get("IdentifierList", {}).get("CID", [])
+                if cids:
+                    res = PubChemResolver._fetch_props_by_cid(cids[0], ident)
+                    if res:
+                        return res
         except Exception:
             pass
 
-        # Tier 4: NIH Cactus / Chemical Identifier Resolver (CIR)
+        # 5. NIH Chemical Identifier Resolver (CIR) fallback
         try:
             cir_url = f"https://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(ident)}/smiles"
-            r_cir = requests.get(cir_url, headers=PubChemResolver.HEADERS, timeout=6)
+            r_cir = requests.get(cir_url, headers=PubChemResolver.HEADERS, timeout=8)
             if r_cir.status_code == 200 and r_cir.text.strip() and "<html" not in r_cir.text.lower():
-                s_cand = r_cir.text.strip().split("\n")[0]
-                if Chem.MolFromSmiles(s_cand):
-                    return {"cid": None, "name": ident, "smiles": s_cand}
+                smiles_cand = r_cir.text.strip().split("\n")[0]
+                if Chem.MolFromSmiles(smiles_cand):
+                    return {"cid": None, "name": ident, "smiles": smiles_cand}
         except Exception:
             pass
 
-        # Tier 5: OPSIN Chemical Name-to-Structure Resolver (Cambridge University)
+        # 6. OPSIN Name-to-structure (University of Cambridge)
         try:
             opsin_url = f"https://opsin.ch.cam.ac.uk/opsin/{requests.utils.quote(ident)}.json"
-            r_op = requests.get(opsin_url, headers=PubChemResolver.HEADERS, timeout=6)
+            r_op = requests.get(opsin_url, headers=PubChemResolver.HEADERS, timeout=8)
             if r_op.status_code == 200:
-                s_cand = r_op.json().get("smiles")
-                if s_cand and Chem.MolFromSmiles(s_cand):
-                    return {"cid": None, "name": ident, "smiles": s_cand}
+                smiles_cand = r_op.json().get("smiles")
+                if smiles_cand and Chem.MolFromSmiles(smiles_cand):
+                    return {"cid": None, "name": ident, "smiles": smiles_cand}
         except Exception:
             pass
 
@@ -137,7 +166,7 @@ class PubChemResolver:
             return False
         try:
             url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
-            r = requests.get(url, headers=PubChemResolver.HEADERS, timeout=6)
+            r = requests.get(url, headers=PubChemResolver.HEADERS, timeout=8)
             if r.status_code == 200:
                 return "H317" in r.text or "allergic skin reaction" in r.text.lower()
         except Exception:
@@ -154,6 +183,7 @@ class ChemistAgent:
         "SN2_Alkyl_Halide": "[Cl,Br,I][CH2,CH1][#6]",
         "SN2_Epoxide_Aziridine": "[C,N]1[C,N]O1",
         "Michael_Acceptor_Enone": "[CX3]=[CX3][CX3](=[OX1,SX1])",
+        "Michael_Acceptor_Acrylic_Acid_Ester": "[CX3]=[CX3][CX3](=[OX1])[OX2,OX1-]",
         "Schiff_Base_Aldehyde": "[CX3H1](=O)[#6]",
         "SNAr_Nitro_Haloaromatic": "c1([N+](=O)[O-])cc([Cl,Br,F])ccc1",
         "Acyl_Transfer_Halide": "[CX3](=[OX1])[Cl,Br,I]",
@@ -341,7 +371,7 @@ tab_single, tab_sketch, tab_batch = st.tabs([
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="111-44-4")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="79-10-7")
     with col_btn:
         st.write("")
         st.write("")
@@ -351,7 +381,7 @@ with tab_single:
         with st.spinner(f"Evaluating {single_input}..."):
             res = process_single_chemical(single_input)
             if res["Status"] == "FAILED_RESOLUTION":
-                st.error(f"Could not resolve structure for '{single_input}'. You can also enter the SMILES directly or sketch it in the 'Draw Molecule' tab.")
+                st.error(f"Could not resolve structure for '{single_input}'.")
             else:
                 render_dashboard_cards(res)
 
@@ -396,7 +426,7 @@ with tab_sketch:
     components.html(jsme_html, height=450)
 
     st.markdown("#### Submit Sketched Structure")
-    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="ClCCOCCCl")
+    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="C=CC(=O)O")
     if st.button("🚀 Predict from Sketched Structure", type="primary"):
         with st.spinner("Analyzing sketched molecule..."):
             res = process_single_chemical(sketched_smiles)
@@ -413,8 +443,8 @@ with tab_batch:
     st.write("File must contain at least one column labeled `CAS`, `CASRN`, `Name`, `Compound`, or `SMILES`.")
 
     sample_df = pd.DataFrame({
-        "CAS": ["111-44-4", "50-00-0", "106-99-0", "78-70-6"],
-        "Compound_Name": ["Bis(2-chloroethyl) ether", "Formaldehyde", "1,3-Butadiene", "Linalool"],
+        "CAS": ["79-10-7", "111-44-4", "50-00-0", "106-99-0", "78-70-6"],
+        "Compound_Name": ["Acrylic acid", "Bis(2-chloroethyl) ether", "Formaldehyde", "1,3-Butadiene", "Linalool"],
     })
     csv_template = sample_df.to_csv(index=False).encode("utf-8")
     st.download_button(
