@@ -1,5 +1,6 @@
 import hashlib
 import io
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -23,7 +24,7 @@ st.set_page_config(
 
 st.title("🧪 Multi-Agent Skin Sensitization Predictor")
 st.caption(
-    "Automated Defined Approach based on **OECD Guideline 497**, RDKit SMARTS haptenation alerts, interactive 2D structure sketching, and resilient multi-database chemical resolution."
+    "Automated Defined Approach based on **OECD Guideline 497**, RDKit SMARTS (Direct Haptens + Prohaptens), interactive 2D sketching, and resilient multi-database resolution."
 )
 
 # =====================================================================
@@ -49,10 +50,11 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# UNIVERSAL PUBCHEM / NIH / OPSIN RESOLVER
+# RESILIENT SANITIZING CHEMICAL RESOLVER
 # =====================================================================
 class PubChemResolver:
     OFFLINE_BENCHMARK_CACHE = {
+        "62-53-3": {"name": "Aniline", "smiles": "NC1=CC=CC=C1", "cid": 6115},
         "79-06-1": {"name": "Acrylamide", "smiles": "C=CC(=O)N", "cid": 6579},
         "79-10-7": {"name": "Acrylic acid", "smiles": "C=CC(=O)O", "cid": 6581},
         "111-44-4": {"name": "Bis(2-chloroethyl) ether", "smiles": "ClCCOCCCl", "cid": 8107},
@@ -69,10 +71,12 @@ class PubChemResolver:
         "80-62-6": {"name": "Methyl methacrylate", "smiles": "CC(=C)C(=O)OC", "cid": 6658},
         "100-42-5": {"name": "Styrene", "smiles": "C=CC1=CC=CC=C1", "cid": 7501},
         "108-95-2": {"name": "Phenol", "smiles": "C1=CC=C(C=C1)O", "cid": 996},
+        "106-51-4": {"name": "p-Benzoquinone", "smiles": "O=C1C=CC(=O)C=C1", "cid": 4650},
+        "123-31-9": {"name": "Hydroquinone", "smiles": "OC1=CC=C(O)C=C1", "cid": 285},
     }
 
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     }
 
     @staticmethod
@@ -94,11 +98,13 @@ class PubChemResolver:
 
     @staticmethod
     def resolve_input(identifier: str) -> Optional[Dict[str, Any]]:
-        ident = str(identifier).strip()
+        # 1. Clean and sanitize all whitespaces and quotation marks
+        raw_ident = str(identifier).strip().replace('"', '').replace("'", "")
+        ident = re.sub(r"\s+", " ", raw_ident)
         if not ident:
             return None
 
-        # 1. Direct Cache lookup
+        # 2. Local benchmark cache
         if ident in PubChemResolver.OFFLINE_BENCHMARK_CACHE:
             item = PubChemResolver.OFFLINE_BENCHMARK_CACHE[ident]
             return {"cid": item.get("cid"), "name": item["name"], "smiles": item["smiles"]}
@@ -107,20 +113,33 @@ class PubChemResolver:
             if ident.lower() == v["name"].lower():
                 return {"cid": v.get("cid"), "name": v["name"], "smiles": v["smiles"]}
 
-        # 2. Check if already a valid SMILES string
+        # 3. Direct SMILES check
         mol = Chem.MolFromSmiles(ident)
         if mol:
-            return {"cid": None, "name": "Custom Structure", "smiles": ident}
+            return {"cid": None, "name": "Custom Molecule", "smiles": ident}
 
-        # 3. NIH PubChem Autocomplete API (Finds CIDs for CAS, IUPAC, InChIKey, trade names)
+        # 4. CAS-specific PubChem query
+        if re.match(r"^\d{2,7}-\d{2}-\d$", ident):
+            try:
+                cas_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{ident}/cids/JSON"
+                r_cas = requests.get(cas_url, headers=PubChemResolver.HEADERS, timeout=6)
+                if r_cas.status_code == 200:
+                    cids = r_cas.json().get("IdentifierList", {}).get("CID", [])
+                    if cids:
+                        res = PubChemResolver._fetch_props_by_cid(cids[0], ident)
+                        if res:
+                            return res
+            except Exception:
+                pass
+
+        # 5. NIH Autocomplete Search
         try:
-            ac_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/autocomplete/compound/{requests.utils.quote(ident)}/json?limit=5"
+            ac_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/autocomplete/compound/{requests.utils.quote(ident)}/json?limit=3"
             r_ac = requests.get(ac_url, headers=PubChemResolver.HEADERS, timeout=6)
             if r_ac.status_code == 200:
-                compound_suggestions = r_ac.json().get("dictionary_terms", {}).get("compound", [])
-                if compound_suggestions:
-                    # Resolve first suggested title
-                    first_match = compound_suggestions[0]
+                suggestions = r_ac.json().get("dictionary_terms", {}).get("compound", [])
+                if suggestions:
+                    first_match = suggestions[0]
                     name_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(first_match)}/property/IUPACName,CanonicalSMILES/JSON"
                     r_name = requests.get(name_url, headers=PubChemResolver.HEADERS, timeout=6)
                     if r_name.status_code == 200:
@@ -134,38 +153,25 @@ class PubChemResolver:
         except Exception:
             pass
 
-        # 4. PubChem direct name/synonym fallback
-        try:
-            name_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(ident)}/cids/JSON"
-            r_name = requests.get(name_url, headers=PubChemResolver.HEADERS, timeout=6)
-            if r_name.status_code == 200:
-                cids = r_name.json().get("IdentifierList", {}).get("CID", [])
-                if cids:
-                    res = PubChemResolver._fetch_props_by_cid(cids[0], ident)
-                    if res:
-                        return res
-        except Exception:
-            pass
-
-        # 5. NIH Chemical Identifier Resolver (CIR) fallback
+        # 6. NIH CIR / Cactus Fallback
         try:
             cir_url = f"https://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(ident)}/smiles"
             r_cir = requests.get(cir_url, headers=PubChemResolver.HEADERS, timeout=6)
             if r_cir.status_code == 200 and r_cir.text.strip() and "<html" not in r_cir.text.lower():
-                smiles_cand = r_cir.text.strip().split("\n")[0]
-                if Chem.MolFromSmiles(smiles_cand):
-                    return {"cid": None, "name": ident, "smiles": smiles_cand}
+                s_cand = r_cir.text.strip().split("\n")[0]
+                if Chem.MolFromSmiles(s_cand):
+                    return {"cid": None, "name": ident, "smiles": s_cand}
         except Exception:
             pass
 
-        # 6. OPSIN Name-to-structure (University of Cambridge)
+        # 7. OPSIN University of Cambridge
         try:
             opsin_url = f"https://opsin.ch.cam.ac.uk/opsin/{requests.utils.quote(ident)}.json"
             r_op = requests.get(opsin_url, headers=PubChemResolver.HEADERS, timeout=6)
             if r_op.status_code == 200:
-                smiles_cand = r_op.json().get("smiles")
-                if smiles_cand and Chem.MolFromSmiles(smiles_cand):
-                    return {"cid": None, "name": ident, "smiles": smiles_cand}
+                s_cand = r_op.json().get("smiles")
+                if s_cand and Chem.MolFromSmiles(s_cand):
+                    return {"cid": None, "name": ident, "smiles": s_cand}
         except Exception:
             pass
 
@@ -186,21 +192,30 @@ class PubChemResolver:
 
 
 # =====================================================================
-# MULTI-AGENT ENGINES
+# MULTI-AGENT ENGINES (DIRECT HAPTENS + PROHAPTENS / PREHAPTENS)
 # =====================================================================
 class ChemistAgent:
     OECD_SMARTS = {
+        # 1. Direct SN2 / Alkylating alerts
         "SN2_Beta_Haloalkyl_Heteroatom": "[Cl,Br,I][CX4][CX4][O,S,N]",
         "SN2_Alkyl_Halide": "[Cl,Br,I][CH2,CH1][#6]",
         "SN2_Epoxide_Aziridine": "[C,N]1[C,N]O1",
+        # 2. Michael Acceptors
         "Michael_Acceptor_Enone": "[CX3]=[CX3][CX3](=[OX1,SX1])",
         "Michael_Acceptor_Acrylic_Acid_Ester": "[CX3]=[CX3][CX3](=[OX1])[OX2,OX1-]",
         "Michael_Acceptor_Acrylamide": "[CX3]=[CX3][CX3](=[OX1])[NX3,NX4+]",
         "Michael_Acceptor_Acrylonitrile": "[CX3]=[CX3][CX2]#[NX1]",
+        "Michael_Acceptor_Quinone": "O=C1C=CC(=O)C=C1",
+        # 3. Carbonyl / Schiff Base Formers
         "Schiff_Base_Aldehyde": "[CX3H1](=O)[#6]",
+        # 4. Aromatic & Acyl Substitutions
         "SNAr_Nitro_Haloaromatic": "c1([N+](=O)[O-])cc([Cl,Br,F])ccc1",
         "Acyl_Transfer_Halide": "[CX3](=[OX1])[Cl,Br,I]",
         "Acyl_Transfer_Isocyanate": "[NX2]=[CX2]=[OX1]",
+        # 5. Prohaptens & Prehaptens (Metabolic / Autoxidative Activation)
+        "Prohapten_Aromatic_Primary_Amine": "c1ccccc1[NX3H2]",
+        "Prohapten_Hydroquinone_Catechol": "c1c(O)ccc(O)c1",
+        "Prehapten_Terpene_Diene": "C=C(C)C1CC=C(C)CC1",
     }
 
     def __init__(self):
@@ -210,20 +225,35 @@ class ChemistAgent:
         if not chem.mol:
             return {"status": "ERROR", "alerts": [], "mechanisms": ["Invalid Molecule"]}
         hits = [name for name, pat in self.patterns.items() if chem.mol.HasSubstructMatch(pat)]
+        
+        is_prohapten = any("Prohapten" in h or "Prehapten" in h for h in hits)
+        mechanisms = list(set([h.split("_")[0] for h in hits])) if hits else ["Unreactive"]
+        if is_prohapten:
+            mechanisms.append("Metabolic/Autoxidative Activation Required")
+
         return {
             "status": "ALERT_FOUND" if hits else "NO_ALERTS",
             "alerts": hits,
-            "mechanisms": list(set([h.split("_")[0] for h in hits])) if hits else ["Unreactive"],
+            "mechanisms": mechanisms,
+            "is_prohapten": is_prohapten,
         }
 
 
 class ToxicologistAgent:
     def evaluate(self, chem: ChemicalProfile, chem_data: Dict[str, Any], has_h317: bool) -> Dict[str, Any]:
         has_alerts = chem_data["status"] == "ALERT_FOUND"
+        is_prohapten = chem_data.get("is_prohapten", False)
+
         if has_alerts or has_h317:
-            ke1 = 0.88  # DPRA (Protein binding)
-            ke2 = 0.82  # KeratinoSens (Keap1-Nrf2 activation)
-            ke3 = 0.78  # h-CLAT (Dendritic cell activation)
+            if is_prohapten:
+                # Prohaptens show low in chemico DPRA binding without S9 mix, but positive cellular activation
+                ke1 = 0.52  # Baseline DPRA (requires metabolic bioactivation)
+                ke2 = 0.78  # KeratinoSens Nrf2 activation
+                ke3 = 0.75  # h-CLAT Dendritic marker upregulation
+            else:
+                ke1 = 0.88  # Direct covalent protein haptenation
+                ke2 = 0.82  # KeratinoSens
+                ke3 = 0.78  # h-CLAT
         else:
             ke1, ke2, ke3 = 0.18, 0.22, 0.20
 
@@ -232,6 +262,7 @@ class ToxicologistAgent:
             "KE2_KeratinoSens": ke2,
             "KE3_hCLAT": ke3,
             "pathway": "Keap1-Nrf2 ARE Activated" if ke2 > 0.5 else "Basal",
+            "bioactivation_note": "Prohapten/Prehapten: S9-DPRA or LuSens recommended" if is_prohapten else "Direct Hapten",
         }
 
 
@@ -253,8 +284,8 @@ class RegulatoryAgent:
         hits = sum(1 for v in [tox_data["KE1_DPRA"], tox_data["KE2_KeratinoSens"], tox_data["KE3_hCLAT"]] if v >= 0.5)
 
         if is_sens:
-            ghs = "GHS Category 1A (Strong)" if stat_data["score"] > 0.85 else "GHS Category 1B (Moderate)"
-            next_action = "Execute OECD TG 442C (DPRA) & OECD TG 442D (KeratinoSens) for 2-of-3 DA."
+            ghs = "GHS Category 1A (Strong)" if stat_data["score"] > 0.85 else "GHS Category 1B (Moderate/Prohapten)"
+            next_action = f"OECD GL 497 2-of-3 Battery: OECD TG 442C, 442D, 442E ({tox_data['bioactivation_note']})."
         else:
             ghs = "GHS Not Classified (Non-Sensitizer)"
             next_action = "2 concordant negative in vitro assays required for regulatory dossier."
@@ -370,7 +401,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
 
 # =====================================================================
-# UI TABS: SINGLE LOOKUP, SKETCHER, & BATCH SCREENING
+# UI TABS
 # =====================================================================
 tab_single, tab_sketch, tab_batch = st.tabs([
     "🔍 Single Compound Lookup",
@@ -384,7 +415,7 @@ tab_single, tab_sketch, tab_batch = st.tabs([
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="79-06-1")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="62-53-3")
     with col_btn:
         st.write("")
         st.write("")
@@ -394,7 +425,7 @@ with tab_single:
         with st.spinner(f"Evaluating {single_input}..."):
             res = process_single_chemical(single_input)
             if res["Status"] == "FAILED_RESOLUTION":
-                st.error(f"Could not resolve structure for '{single_input}'. You can enter the SMILES directly or sketch it in the 'Draw Molecule' tab.")
+                st.error(f"Could not resolve structure for '{single_input}'.")
             else:
                 render_dashboard_cards(res)
 
@@ -439,7 +470,7 @@ with tab_sketch:
     components.html(jsme_html, height=450)
 
     st.markdown("#### Submit Sketched Structure")
-    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="C=CC(=O)N")
+    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="NC1=CC=CC=C1")
     if st.button("🚀 Predict from Sketched Structure", type="primary"):
         with st.spinner("Analyzing sketched molecule..."):
             res = process_single_chemical(sketched_smiles)
@@ -456,8 +487,8 @@ with tab_batch:
     st.write("File must contain at least one column labeled `CAS`, `CASRN`, `Name`, `Compound`, or `SMILES`.")
 
     sample_df = pd.DataFrame({
-        "CAS": ["79-06-1", "79-10-7", "111-44-4", "50-00-0", "106-99-0", "78-70-6"],
-        "Compound_Name": ["Acrylamide", "Acrylic acid", "Bis(2-chloroethyl) ether", "Formaldehyde", "1,3-Butadiene", "Linalool"],
+        "CAS": ["62-53-3", "79-06-1", "79-10-7", "111-44-4", "50-00-0", "106-99-0", "78-70-6"],
+        "Compound_Name": ["Aniline", "Acrylamide", "Acrylic acid", "Bis(2-chloroethyl) ether", "Formaldehyde", "1,3-Butadiene", "Linalool"],
     })
     csv_template = sample_df.to_csv(index=False).encode("utf-8")
     st.download_button(
