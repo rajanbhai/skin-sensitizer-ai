@@ -49,17 +49,21 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# NIH PUBCHEM RESOLVER
+# NIH PUBCHEM & NCI RESOLVER (RESILIENT TWO-STEP + CIR FALLBACK)
 # =====================================================================
 class PubChemResolver:
-    BASE_URL = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
+    PUG_REST_BASE = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
+    NCI_CIR_BASE = "https://cactus.nci.nih.gov/chemical/structure"
+    HEADERS = {"User-Agent": "SkinSensitizationBot/2.0 (Academic/Research tool; mailto:research@example.com)"}
 
     @staticmethod
     def resolve_input(identifier: str) -> Optional[Dict[str, Any]]:
-        """Resolves CAS RN, Chemical Name, or SMILES to standardized metadata."""
+        """Multi-tiered resolver supporting SMILES, CAS RN, and Chemical Names."""
         identifier = str(identifier).strip()
-        
-        # Check if already a valid SMILES
+        if not identifier:
+            return None
+
+        # Tier 1: Direct SMILES string check
         mol = Chem.MolFromSmiles(identifier)
         if mol:
             return {
@@ -68,18 +72,42 @@ class PubChemResolver:
                 "smiles": identifier,
             }
 
-        url = f"{PubChemResolver.BASE_URL}/compound/name/{identifier}/property/IUPACName,CanonicalSMILES/JSON"
+        # Tier 2: Two-step PubChem Resolution (Name/CAS -> CID -> Properties)
         try:
-            r = requests.get(url, timeout=8)
-            if r.status_code == 200:
-                data = r.json().get("PropertyTable", {}).get("Properties", [])[0]
-                return {
-                    "cid": data.get("CID"),
-                    "name": data.get("IUPACName", identifier),
-                    "smiles": data.get("CanonicalSMILES"),
-                }
+            cid_url = f"{PubChemResolver.PUG_REST_BASE}/compound/name/{identifier}/cids/JSON"
+            r_cid = requests.get(cid_url, headers=PubChemResolver.HEADERS, timeout=10)
+            if r_cid.status_code == 200:
+                cids = r_cid.json().get("IdentifierList", {}).get("CID", [])
+                if cids:
+                    cid = cids[0]
+                    prop_url = f"{PubChemResolver.PUG_REST_BASE}/compound/cid/{cid}/property/IUPACName,CanonicalSMILES/JSON"
+                    r_prop = requests.get(prop_url, headers=PubChemResolver.HEADERS, timeout=10)
+                    if r_prop.status_code == 200:
+                        data = r_prop.json().get("PropertyTable", {}).get("Properties", [])[0]
+                        return {
+                            "cid": cid,
+                            "name": data.get("IUPACName", identifier),
+                            "smiles": data.get("CanonicalSMILES"),
+                        }
         except Exception:
             pass
+
+        # Tier 3: NIH Chemical Identifier Resolver (CIR / Cactus) Fallback for CAS numbers
+        try:
+            cir_url = f"{PubChemResolver.NCI_CIR_BASE}/{identifier}/smiles"
+            r_cir = requests.get(cir_url, headers=PubChemResolver.HEADERS, timeout=10)
+            if r_cir.status_code == 200 and r_cir.text.strip():
+                smiles_candidate = r_cir.text.strip().split("\n")[0]
+                test_mol = Chem.MolFromSmiles(smiles_candidate)
+                if test_mol:
+                    return {
+                        "cid": None,
+                        "name": identifier,
+                        "smiles": smiles_candidate,
+                    }
+        except Exception:
+            pass
+
         return None
 
     @staticmethod
@@ -89,7 +117,7 @@ class PubChemResolver:
             return False
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
         try:
-            r = requests.get(url, timeout=8)
+            r = requests.get(url, headers=PubChemResolver.HEADERS, timeout=10)
             if r.status_code == 200:
                 return "H317" in r.text or "allergic skin reaction" in r.text.lower()
         except Exception:
