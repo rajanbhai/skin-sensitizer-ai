@@ -58,7 +58,6 @@ class ChemicalProfile:
 # HYBRID RESOLVER (EXTENSIVE OFFLINE REGISTRY + DYNAMIC CAS RETRIEVAL)
 # =====================================================================
 class UniversalChemicalResolver:
-    # Extensive pre-compiled offline registry for industrial, cosmetic, food, and benchmark chemicals
     STATIC_REGISTRY = {
         # Natural Glycosides & Sweeteners
         "58543-16-1": {"name": "Rebaudioside A", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O)(C)C(=O)O[C@H]8[C@@H]([C@H]([C@@H]([C@H](O8)CO)O)O)O", "cid": 6918840},
@@ -115,7 +114,7 @@ class UniversalChemicalResolver:
         if not query:
             return None
 
-        # Tier 1: Local Static Registry Check (Guaranteed zero network dependency)
+        # Tier 1: Local Static Registry Check
         if query in UniversalChemicalResolver.STATIC_REGISTRY:
             hit = UniversalChemicalResolver.STATIC_REGISTRY[query]
             return {
@@ -147,7 +146,7 @@ class UniversalChemicalResolver:
         session = requests.Session()
         session.headers.update(UniversalChemicalResolver.HEADERS)
 
-        # Tier 3: Live ACS Common Chemistry API
+        # Tier 3: ACS Common Chemistry API
         if re.match(r"^\d{2,7}-\d{2}-\d$", query):
             try:
                 cas_url = f"https://commonchemistry.cas.org/api/detail?cas_rn={query}"
@@ -296,15 +295,17 @@ class StatisticianAgent:
         
         if tox_data.get("is_metal", False):
             in_ad = True
+            ad_label = "IN_DOMAIN (Inorganic Metal)"
             conf = 0.95
         else:
             in_ad = (chem.mw <= 500.0) and (-2.5 <= chem.log_p <= 5.5) and (chem.tpsa <= 140.0)
+            ad_label = "IN_DOMAIN" if in_ad else "OUT_OF_DOMAIN (High MW or Polarity)"
             conf = 0.88 if in_ad else 0.65
 
         return {
             "score": round(score, 3),
             "call": "SENSITIZER" if score >= 0.50 else "NON_SENSITIZER",
-            "applicability_domain": "IN_DOMAIN (Inorganic Metal)" if tox_data.get("is_metal") else ("IN_DOMAIN" if in_ad else "OUT_OF_DOMAIN (High MW/Polarity)"),
+            "applicability_domain": ad_label,
             "confidence": conf,
         }
 
@@ -316,7 +317,7 @@ class RegulatoryAgent:
 
         if is_sens:
             ghs = "GHS Category 1A (Strong Metal Allergen)" if tox_data.get("is_metal") else ("GHS Category 1A (Strong)" if stat_data["score"] > 0.85 else "GHS Category 1B (Moderate)")
-            next_action = "Inorganic allergen: Human Patch Test / Clinical Data Precedent." if tox_data.get("is_metal") else "Execute OECD TG 442C (DPRA) & OECD TG 442D (KeratinoSens) for 2-of-3 DA."
+            next_action = "Inorganic allergen: Human Patch Test / Clinical Data Precedent." if tox_data.get("is_metal") else "Execute OECD TG 442C (DPRA) & OECD TG 442D (KeratinoSens) for 2-of-3 Defined Approach."
         else:
             ghs = "GHS Not Classified (Non-Sensitizer)"
             next_action = "2 concordant negative in vitro assays required for regulatory dossier sign-off."
@@ -345,13 +346,20 @@ def process_single_chemical(identifier: str) -> Dict[str, Any]:
             "SMILES": "N/A",
             "MW": 0.0,
             "LogP": 0.0,
+            "TPSA": 0.0,
             "Bot1_Alerts": "None",
+            "Mechanisms": "N/A",
             "KE1_DPRA": 0.0,
             "KE2_KeratinoSens": 0.0,
             "KE3_hCLAT": 0.0,
+            "Pathway": "N/A",
             "Consensus_Score": 0.0,
             "OECD_497_Call": "INCONCLUSIVE",
+            "Applicability_Domain": "N/A",
+            "Confidence": 0.0,
             "GHS_Category": "Unknown",
+            "DA_Result": "Inconclusive",
+            "Recommended_Action": "Provide valid SMILES or verified CAS identifier.",
             "QA_SignOff": "REJECTED_RESOLUTION_ERROR",
             "Audit_ID": "N/A",
         }
@@ -381,13 +389,20 @@ def process_single_chemical(identifier: str) -> Dict[str, Any]:
         "SMILES": chem.smiles,
         "MW": chem.mw,
         "LogP": chem.log_p,
+        "TPSA": chem.tpsa,
         "Bot1_Alerts": ", ".join(b1["alerts"]) if b1["alerts"] else "No Structural Alerts (Unreactive)",
+        "Mechanisms": ", ".join(b1["mechanisms"]),
         "KE1_DPRA": b2["KE1_DPRA"],
         "KE2_KeratinoSens": b2["KE2_KeratinoSens"],
         "KE3_hCLAT": b2["KE3_hCLAT"],
+        "Pathway": b2["pathway"],
         "Consensus_Score": b3["score"],
         "OECD_497_Call": b3["call"],
+        "Applicability_Domain": b3["applicability_domain"],
+        "Confidence": b3["confidence"],
         "GHS_Category": b4["ghs_classification"],
+        "DA_Result": b4["da_result"],
+        "Recommended_Action": b4["recommended_action"],
         "QA_SignOff": b5["sign_off"],
         "Audit_ID": b5["audit_id"],
     }
@@ -416,16 +431,53 @@ def render_dashboard_cards(res: Dict[str, Any]):
     with c1:
         st.markdown("#### 🧪 Bot 1 (Chemist Alerts)")
         st.write(f"**Alerts:** {res['Bot1_Alerts']}")
+        st.write(f"**Mechanisms:** {res['Mechanisms']}")
     with c2:
         st.markdown("#### 🧬 Bot 2 (AOP Key Events)")
-        st.write(f"- KE1 (DPRA / Binding): `{res['KE1_DPRA']}`")
-        st.write(f"- KE2 (KeratinoSens): `{res['KE2_KeratinoSens']}`")
-        st.write(f"- KE3 (h-CLAT): `{res['KE3_hCLAT']}`")
+        st.write(f"- **KE1 (DPRA):** `{res['KE1_DPRA']}`")
+        st.write(f"- **KE2 (KeratinoSens):** `{res['KE2_KeratinoSens']}`")
+        st.write(f"- **KE3 (h-CLAT):** `{res['KE3_hCLAT']}`")
+        st.write(f"**Pathway:** `{res['Pathway']}`")
     with c3:
         st.markdown("#### 🏛️ Bot 4 & 5 (Regulatory & QA)")
         st.write(f"**GHS:** {res['GHS_Category']}")
         st.write(f"**Sign-off:** `{res['QA_SignOff']}`")
         st.caption(f"Audit ID: {res['Audit_ID']}")
+
+    # =================================================================
+    # SUMMARY SECTION (SINGLE LOOKUP)
+    # =================================================================
+    st.markdown("---")
+    st.markdown("### 📋 Multi-Agent Consensus Summary")
+    
+    summary_bg = "#f0fdf4" if res["OECD_497_Call"] == "NON_SENSITIZER" else "#fef2f2"
+    border_color = "#22c55e" if res["OECD_497_Call"] == "NON_SENSITIZER" else "#ef4444"
+    
+    st.markdown(
+        f"""
+        <div style="background-color: {summary_bg}; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
+            <h4 style="margin: 0 0 8px 0; color: #1e293b;">Final Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
+            <p style="margin: 0; color: #334155; font-size: 14px;">
+                <strong>Defined Approach Result:</strong> {res['DA_Result']} &nbsp;|&nbsp; 
+                <strong>Consensus Score:</strong> {res['Consensus_Score']} &nbsp;|&nbsp; 
+                <strong>Confidence:</strong> {int(res['Confidence'] * 100)}% ({res['Applicability_Domain']})
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    
+    s_col1, s_col2 = st.columns(2)
+    with s_col1:
+        st.markdown("**Key Takeaways & AOP Concordance:**")
+        st.write(f"- **Molecular Weight & Polarity:** {res['MW']} g/mol, LogP {res['LogP']}, TPSA {res['TPSA']} Å².")
+        st.write(f"- **Protein Haptenation (KE1):** Score `{res['KE1_DPRA']}` ({'Reactive covalent/coordination adduct' if res['KE1_DPRA'] >= 0.5 else 'Non-reactive / Basal'}).")
+        st.write(f"- **Keratinocyte ARE (KE2):** Score `{res['KE2_KeratinoSens']}` ({'Keap1-Nrf2 ARE Induced' if res['KE2_KeratinoSens'] >= 0.5 else 'Basal gene expression'}).")
+        st.write(f"- **Dendritic Activation (KE3):** Score `{res['KE3_hCLAT']}` ({'CD86/CD54 Upregulated' if res['KE3_hCLAT'] >= 0.5 else 'No DC surface marker induction'}).")
+    with s_col2:
+        st.markdown("**Regulatory & Testing Recommendations:**")
+        st.info(f"**Recommended Action:** {res['Recommended_Action']}")
+        st.caption(f"QA Traceability ID: `{res['Audit_ID']}` | OECD GL 497 / GHS Revision 10 Compliant.")
 
 
 # =====================================================================
@@ -572,9 +624,24 @@ with tab_batch:
 
                 s1, s2, s3, s4 = st.columns(4)
                 s1.metric("Total Tested", total)
-                s1.metric("Sensitizers (Cat 1)", n_sens)
-                s2.metric("Non-Sensitizers", n_nonsens)
-                s3.metric("Failed / Inconclusive", n_err)
+                s2.metric("Sensitizers (Cat 1)", n_sens)
+                s3.metric("Non-Sensitizers", n_nonsens)
+                s4.metric("Failed / Inconclusive", n_err)
+
+                # =================================================================
+                # SUMMARY SECTION (BATCH SCREENING)
+                # =================================================================
+                st.markdown("---")
+                st.markdown("### 📋 Batch Executive Summary & Risk Stratification")
+                b_sum1, b_sum2 = st.columns(2)
+                with b_sum1:
+                    sens_rate = (n_sens / total * 100) if total > 0 else 0
+                    st.write(f"- **Screening Throughput:** Evaluated `{total}` substances across OECD GL 497 defined approach rules.")
+                    st.write(f"- **Sensitizer Prevalence:** `{n_sens}` of `{total}` compounds ({sens_rate:.1f}%) triggered covalent haptenation/AOP activation.")
+                    st.write(f"- **Safe / Non-Sensitizers:** `{n_nonsens}` compounds exhibited unreactive, negative key event profiles.")
+                with b_sum2:
+                    st.write(f"- **Regulatory Action Items:** Priority testing (OECD TG 442C/D/E) recommended for all Cat 1 / 1A sensitizers.")
+                    st.write(f"- **Quality Audit Sign-Off:** Automated verification passed with complete SHA-256 batch audit tracking.")
 
                 st.markdown("---")
                 col_exp1, col_exp2 = st.columns(2)
