@@ -6,7 +6,6 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import pandas as pd
-import pubchempy as pcp
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -26,7 +25,7 @@ st.set_page_config(
 
 st.title("🧪 Multi-Agent Skin Sensitization Predictor")
 st.caption(
-    "Automated Defined Approach based on **OECD Guideline 497**, Organic SMARTS alerts, Inorganic/Metal Chelation profiler, and universal CAS XRef resolution."
+    "Automated Defined Approach based on **OECD Guideline 497**, RDKit haptenation profilers, and official **ACS CAS Common Chemistry** + NIH PubChem integration."
 )
 
 # =====================================================================
@@ -56,11 +55,11 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# UNIVERSAL CAS & IUPAC CHEMICAL RESOLVER (SUBSTANCE + COMPOUND CASCADE)
+# UNIVERSAL CAS & IUPAC CHEMICAL RESOLVER (ACS CAS API FIRST)
 # =====================================================================
 class UniversalChemicalResolver:
     HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "User-Agent": "SkinSensitizerAI/3.0 (Research Tool; mailto:contact@example.com)",
         "Accept": "application/json, text/plain, */*"
     }
 
@@ -70,25 +69,6 @@ class UniversalChemicalResolver:
             return False
         metal_symbols = ["[Ni]", "[Co]", "[Cr]", "[Cu]", "[Au]", "[Pd]", "[Pt]", "[Zn]", "[Fe]", "[Mn]"]
         return any(m in smiles for m in metal_symbols)
-
-    @staticmethod
-    def _fetch_props_by_cid(cid: int, default_name: str) -> Optional[Dict[str, Any]]:
-        try:
-            prop_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/IUPACName,CanonicalSMILES/JSON"
-            r = requests.get(prop_url, headers=UniversalChemicalResolver.HEADERS, timeout=6)
-            if r.status_code == 200:
-                data = r.json().get("PropertyTable", {}).get("Properties", [])
-                if data:
-                    s = data[0].get("CanonicalSMILES")
-                    return {
-                        "cid": cid,
-                        "name": data[0].get("IUPACName", default_name),
-                        "smiles": s,
-                        "is_metal": UniversalChemicalResolver._is_metal_structure(s),
-                    }
-        except Exception:
-            pass
-        return None
 
     @staticmethod
     def resolve_input(identifier: str) -> Optional[Dict[str, Any]]:
@@ -107,52 +87,49 @@ class UniversalChemicalResolver:
                 "is_metal": UniversalChemicalResolver._is_metal_structure(query),
             }
 
-        # Tier 2: PubChem Substance XRef Registry Number Endpoint (Handles CAS like 38517-21-0)
+        session = requests.Session()
+        session.headers.update(UniversalChemicalResolver.HEADERS)
+
+        # Tier 2: Official ACS CAS Common Chemistry API (Primary for any CAS number)
         if re.match(r"^\d{2,7}-\d{2}-\d$", query):
             try:
-                # 1. PubChem Compound XRef RN
-                url_c_rn = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/xref/RN/{query}/cids/JSON"
-                r_c = requests.get(url_c_rn, headers=UniversalChemicalResolver.HEADERS, timeout=6)
-                if r_c.status_code == 200:
-                    cids = r_c.json().get("IdentifierList", {}).get("CID", [])
-                    if cids:
-                        res = UniversalChemicalResolver._fetch_props_by_cid(cids[0], query)
-                        if res:
-                            return res
+                cas_url = f"https://commonchemistry.cas.org/api/detail?cas_rn={query}"
+                r_cas = session.get(cas_url, timeout=6)
+                if r_cas.status_code == 200:
+                    data = r_cas.json()
+                    smiles = data.get("smile")
+                    name = data.get("name", query)
+                    if smiles:
+                        return {
+                            "cid": None,
+                            "name": name,
+                            "smiles": smiles,
+                            "is_metal": UniversalChemicalResolver._is_metal_structure(smiles),
+                        }
             except Exception:
                 pass
 
-            try:
-                # 2. PubChem Substance XRef RN -> CIDs
-                url_s_rn = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/substance/xref/RN/{query}/cids/JSON"
-                r_s = requests.get(url_s_rn, headers=UniversalChemicalResolver.HEADERS, timeout=6)
-                if r_s.status_code == 200:
-                    cids = r_s.json().get("InformationList", {}).get("Information", [])[0].get("CID", [])
-                    if cids:
-                        res = UniversalChemicalResolver._fetch_props_by_cid(cids[0], query)
-                        if res:
-                            return res
-            except Exception:
-                pass
-
-        # Tier 3: PubChemPy namespace resolver
+        # Tier 3: NIH PubChem PUG-REST (Name / Synonym / Compound)
         try:
-            compounds = pcp.get_compounds(query, 'name')
-            if compounds and len(compounds) > 0:
-                c = compounds[0]
-                return {
-                    "cid": c.cid,
-                    "name": c.iupac_name or query,
-                    "smiles": c.canonical_smiles,
-                    "is_metal": UniversalChemicalResolver._is_metal_structure(c.canonical_smiles),
-                }
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(query)}/property/IUPACName,CanonicalSMILES/JSON"
+            r = session.get(url, timeout=5)
+            if r.status_code == 200:
+                props = r.json().get("PropertyTable", {}).get("Properties", [])
+                if props:
+                    s = props[0].get("CanonicalSMILES")
+                    return {
+                        "cid": props[0].get("CID"),
+                        "name": props[0].get("IUPACName", query),
+                        "smiles": s,
+                        "is_metal": UniversalChemicalResolver._is_metal_structure(s),
+                    }
         except Exception:
             pass
 
-        # Tier 4: NIH Cactus / CIR Fallback
+        # Tier 4: NIH Chemical Identifier Resolver (CIR / Cactus)
         try:
             cir_url = f"https://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(query)}/smiles"
-            r_cir = requests.get(cir_url, headers=UniversalChemicalResolver.HEADERS, timeout=6)
+            r_cir = session.get(cir_url, timeout=5)
             if r_cir.status_code == 200 and r_cir.text.strip() and "<html" not in r_cir.text.lower():
                 s_cand = r_cir.text.strip().split("\n")[0]
                 if Chem.MolFromSmiles(s_cand) or "[" in s_cand:
@@ -165,10 +142,10 @@ class UniversalChemicalResolver:
         except Exception:
             pass
 
-        # Tier 5: Cambridge OPSIN Parser
+        # Tier 5: Cambridge OPSIN IUPAC Parser
         try:
             opsin_url = f"https://opsin.ch.cam.ac.uk/opsin/{requests.utils.quote(query)}.json"
-            r_op = requests.get(opsin_url, headers=UniversalChemicalResolver.HEADERS, timeout=6)
+            r_op = session.get(opsin_url, timeout=5)
             if r_op.status_code == 200:
                 s_cand = r_op.json().get("smiles")
                 if s_cand and (Chem.MolFromSmiles(s_cand) or "[" in s_cand):
