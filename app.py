@@ -25,7 +25,7 @@ st.set_page_config(
 
 st.title("🧪 Multi-Agent Skin Sensitization Predictor")
 st.caption(
-    "Automated Defined Approach based on **OECD Guideline 497**, RDKit haptenation profilers, and official **ACS CAS Common Chemistry** + NIH PubChem integration."
+    "Automated Defined Approach based on **OECD Guideline 497**, Organic SMARTS alerts, Inorganic/Metal Chelation profiler, and hybrid offline/online chemical resolution."
 )
 
 # =====================================================================
@@ -55,11 +55,49 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# UNIVERSAL CAS & IUPAC CHEMICAL RESOLVER (ACS CAS API FIRST)
+# HYBRID RESOLVER (EXTENSIVE OFFLINE REGISTRY + DYNAMIC CAS RETRIEVAL)
 # =====================================================================
 class UniversalChemicalResolver:
+    # Extensive pre-compiled offline registry for industrial, cosmetic, food, and benchmark chemicals
+    STATIC_REGISTRY = {
+        # Natural Glycosides & Sweeteners
+        "58543-16-1": {"name": "Rebaudioside A", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O)(C)C(=O)O[C@H]8[C@@H]([C@H]([C@@H]([C@H](O8)CO)O)O)O", "cid": 6918840},
+        "57817-89-7": {"name": "Stevioside", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O)(C)C(=O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O", "cid": 442089},
+        "471-80-7": {"name": "Steviol", "smiles": "CC12CCCC(C1CCC34C2CCC(C3)(C(=C)C4)O)(C)C(=O)O", "cid": 439653},
+        # Bisphenols & Monomers
+        "620-92-8": {"name": "Bisphenol F", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)O)O", "cid": 12108},
+        "80-05-7": {"name": "Bisphenol A", "smiles": "CC(C)(C1=CC=C(C=C1)O)C2=CC=C(C=C2)O", "cid": 6623},
+        "79-06-1": {"name": "Acrylamide", "smiles": "C=CC(=O)N", "cid": 6579},
+        "79-10-7": {"name": "Acrylic acid", "smiles": "C=CC(=O)O", "cid": 6581},
+        "80-62-6": {"name": "Methyl methacrylate", "smiles": "CC(=C)C(=O)OC", "cid": 6658},
+        "107-13-1": {"name": "Acrylonitrile", "smiles": "C=CC#N", "cid": 7855},
+        # Preservatives, Fragrances & Benchmarks
+        "65-85-0": {"name": "Benzoic acid", "smiles": "C1=CC=C(C=C1)C(=O)O", "cid": 243},
+        "69-72-7": {"name": "Salicylic acid", "smiles": "C1=CC=C(C(=C1)C(=O)O)O", "cid": 338},
+        "104-55-2": {"name": "Cinnamaldehyde", "smiles": "C1=CC=C(C=C1)C=CC=O", "cid": 637511},
+        "99-76-3": {"name": "Methylparaben", "smiles": "COC(=O)C1=CC=C(C=C1)O", "cid": 7456},
+        "62-53-3": {"name": "Aniline", "smiles": "NC1=CC=CC=C1", "cid": 6115},
+        "111-44-4": {"name": "Bis(2-chloroethyl) ether", "smiles": "ClCCOCCCl", "cid": 8107},
+        "50-00-0": {"name": "Formaldehyde", "smiles": "C=O", "cid": 712},
+        "106-99-0": {"name": "1,3-Butadiene", "smiles": "C=CC=C", "cid": 7845},
+        "78-70-6": {"name": "Linalool", "smiles": "CC(=CCCC(C)(C=C)O)C", "cid": 6549},
+        "97-53-0": {"name": "Eugenol", "smiles": "COC1=C(C=CC(=C1)CC=C)O", "cid": 3314},
+        "107-02-8": {"name": "Acrolein", "smiles": "C=CC=O", "cid": 7847},
+        "101-68-8": {"name": "4,4'-MDI", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)N=C=O)N=C=O", "cid": 7570},
+        "123-31-9": {"name": "Hydroquinone", "smiles": "OC1=CC=C(O)C=C1", "cid": 285},
+        "106-51-4": {"name": "p-Benzoquinone", "smiles": "O=C1C=CC(=O)C=C1", "cid": 4650},
+        "118-58-1": {"name": "Benzyl salicylate", "smiles": "C1=CC=C(C=C1)COC(=O)C2=CC=CC=C2O", "cid": 8363},
+        "149-30-4": {"name": "2-Mercaptobenzothiazole", "smiles": "C1=CC=C2C(=C1)NC(=S)S2", "cid": 8989},
+        "586-62-9": {"name": "Terpinolene", "smiles": "CC1=CCC(=C(C)C)CC1", "cid": 11463},
+        # Metals & Inorganics
+        "7440-02-0": {"name": "Nickel", "smiles": "[Ni]", "cid": 935},
+        "7440-48-4": {"name": "Cobalt", "smiles": "[Co]", "cid": 104727},
+        "7440-47-3": {"name": "Chromium", "smiles": "[Cr]", "cid": 23976},
+        "7778-50-9": {"name": "Potassium dichromate", "smiles": "[K+].[K+].[O-][Cr](=O)(=O)O[Cr](=O)(=O)[O-]", "cid": 24502},
+    }
+
     HEADERS = {
-        "User-Agent": "SkinSensitizerAI/3.0 (Research Tool; mailto:contact@example.com)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*"
     }
 
@@ -77,7 +115,26 @@ class UniversalChemicalResolver:
         if not query:
             return None
 
-        # Tier 1: Direct SMILES Check
+        # Tier 1: Local Static Registry Check (Guaranteed zero network dependency)
+        if query in UniversalChemicalResolver.STATIC_REGISTRY:
+            hit = UniversalChemicalResolver.STATIC_REGISTRY[query]
+            return {
+                "cid": hit.get("cid"),
+                "name": hit["name"],
+                "smiles": hit["smiles"],
+                "is_metal": UniversalChemicalResolver._is_metal_structure(hit["smiles"]),
+            }
+
+        for k, v in UniversalChemicalResolver.STATIC_REGISTRY.items():
+            if query.lower() == v["name"].lower():
+                return {
+                    "cid": v.get("cid"),
+                    "name": v["name"],
+                    "smiles": v["smiles"],
+                    "is_metal": UniversalChemicalResolver._is_metal_structure(v["smiles"]),
+                }
+
+        # Tier 2: Direct SMILES Check
         mol = Chem.MolFromSmiles(query)
         if mol:
             return {
@@ -90,14 +147,14 @@ class UniversalChemicalResolver:
         session = requests.Session()
         session.headers.update(UniversalChemicalResolver.HEADERS)
 
-        # Tier 2: Official ACS CAS Common Chemistry API (Primary for any CAS number)
+        # Tier 3: Live ACS Common Chemistry API
         if re.match(r"^\d{2,7}-\d{2}-\d$", query):
             try:
                 cas_url = f"https://commonchemistry.cas.org/api/detail?cas_rn={query}"
-                r_cas = session.get(cas_url, timeout=6)
+                r_cas = session.get(cas_url, timeout=4)
                 if r_cas.status_code == 200:
                     data = r_cas.json()
-                    smiles = data.get("smile")
+                    smiles = data.get("smile") or data.get("smiles")
                     name = data.get("name", query)
                     if smiles:
                         return {
@@ -109,10 +166,10 @@ class UniversalChemicalResolver:
             except Exception:
                 pass
 
-        # Tier 3: NIH PubChem PUG-REST (Name / Synonym / Compound)
+        # Tier 4: Live PubChem PUG-REST Query
         try:
             url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(query)}/property/IUPACName,CanonicalSMILES/JSON"
-            r = session.get(url, timeout=5)
+            r = session.get(url, timeout=4)
             if r.status_code == 200:
                 props = r.json().get("PropertyTable", {}).get("Properties", [])
                 if props:
@@ -126,29 +183,13 @@ class UniversalChemicalResolver:
         except Exception:
             pass
 
-        # Tier 4: NIH Chemical Identifier Resolver (CIR / Cactus)
+        # Tier 5: Live NIH Cactus CIR Fallback
         try:
             cir_url = f"https://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(query)}/smiles"
-            r_cir = session.get(cir_url, timeout=5)
+            r_cir = session.get(cir_url, timeout=4)
             if r_cir.status_code == 200 and r_cir.text.strip() and "<html" not in r_cir.text.lower():
                 s_cand = r_cir.text.strip().split("\n")[0]
                 if Chem.MolFromSmiles(s_cand) or "[" in s_cand:
-                    return {
-                        "cid": None,
-                        "name": query,
-                        "smiles": s_cand,
-                        "is_metal": UniversalChemicalResolver._is_metal_structure(s_cand),
-                    }
-        except Exception:
-            pass
-
-        # Tier 5: Cambridge OPSIN IUPAC Parser
-        try:
-            opsin_url = f"https://opsin.ch.cam.ac.uk/opsin/{requests.utils.quote(query)}.json"
-            r_op = session.get(opsin_url, timeout=5)
-            if r_op.status_code == 200:
-                s_cand = r_op.json().get("smiles")
-                if s_cand and (Chem.MolFromSmiles(s_cand) or "[" in s_cand):
                     return {
                         "cid": None,
                         "name": query,
@@ -166,7 +207,7 @@ class UniversalChemicalResolver:
             return False
         try:
             url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
-            r = requests.get(url, headers=UniversalChemicalResolver.HEADERS, timeout=4)
+            r = requests.get(url, headers=UniversalChemicalResolver.HEADERS, timeout=3)
             if r.status_code == 200:
                 return "H317" in r.text or "allergic skin reaction" in r.text.lower()
         except Exception:
@@ -402,7 +443,7 @@ tab_single, tab_sketch, tab_batch = st.tabs([
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="38517-21-0")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="58543-16-1")
     with col_btn:
         st.write("")
         st.write("")
@@ -474,7 +515,7 @@ with tab_batch:
     st.write("File must contain at least one column labeled `CAS`, `CASRN`, `Name`, `Compound`, or `SMILES`.")
 
     sample_df = pd.DataFrame({
-        "CAS": ["38517-21-0", "620-92-8", "65-85-0", "7440-02-0", "62-53-3", "79-06-1"],
+        "CAS": ["58543-16-1", "620-92-8", "65-85-0", "7440-02-0", "62-53-3", "79-06-1"],
         "Compound_Name": ["Rebaudioside A", "Bisphenol F", "Benzoic acid", "Nickel", "Aniline", "Acrylamide"],
     })
     csv_template = sample_df.to_csv(index=False).encode("utf-8")
@@ -531,9 +572,9 @@ with tab_batch:
 
                 s1, s2, s3, s4 = st.columns(4)
                 s1.metric("Total Tested", total)
-                s2.metric("Sensitizers (Cat 1)", n_sens)
-                s3.metric("Non-Sensitizers", n_nonsens)
-                s4.metric("Failed / Inconclusive", n_err)
+                s1.metric("Sensitizers (Cat 1)", n_sens)
+                s2.metric("Non-Sensitizers", n_nonsens)
+                s3.metric("Failed / Inconclusive", n_err)
 
                 st.markdown("---")
                 col_exp1, col_exp2 = st.columns(2)
