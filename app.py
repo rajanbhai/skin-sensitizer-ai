@@ -26,7 +26,7 @@ st.set_page_config(
 
 st.title("🧪 Multi-Agent Skin Sensitization Predictor")
 st.caption(
-    "Automated Defined Approach based on **OECD Guideline 497**, Organic SMARTS alerts, Inorganic/Metal Chelation profiler, and local offline/online hybrid chemical resolution."
+    "Automated Defined Approach based on **OECD Guideline 497**, Organic SMARTS alerts, Inorganic/Metal Chelation profiler, and universal CAS XRef resolution."
 )
 
 # =====================================================================
@@ -56,7 +56,7 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# HYBRID RESOLVER: OFFLINE SQLITE FIRST -> LIVE FALLBACK
+# UNIVERSAL CAS & IUPAC CHEMICAL RESOLVER
 # =====================================================================
 class UniversalChemicalResolver:
     DB_PATH = os.path.join(os.path.dirname(__file__), "chem_index.db")
@@ -72,23 +72,20 @@ class UniversalChemicalResolver:
         return any(m in smiles for m in metal_symbols)
 
     @staticmethod
-    def _query_local_db(identifier: str) -> Optional[Dict[str, Any]]:
-        if not os.path.exists(UniversalChemicalResolver.DB_PATH):
-            return None
+    def _fetch_props_by_cid(session: requests.Session, cid: int, default_name: str) -> Optional[Dict[str, Any]]:
         try:
-            conn = sqlite3.connect(UniversalChemicalResolver.DB_PATH)
-            c = conn.cursor()
-            # Match by CAS or by chemical name
-            c.execute("SELECT name, smiles, cid FROM chemicals WHERE cas = ? OR LOWER(name) = ?", (identifier, identifier.lower()))
-            row = c.fetchone()
-            conn.close()
-            if row:
-                return {
-                    "cid": row[2],
-                    "name": row[0],
-                    "smiles": row[1],
-                    "is_metal": UniversalChemicalResolver._is_metal_structure(row[1]),
-                }
+            prop_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/IUPACName,CanonicalSMILES/JSON"
+            r = session.get(prop_url, timeout=5)
+            if r.status_code == 200:
+                data = r.json().get("PropertyTable", {}).get("Properties", [])
+                if data:
+                    s = data[0].get("CanonicalSMILES")
+                    return {
+                        "cid": cid,
+                        "name": data[0].get("IUPACName", default_name),
+                        "smiles": s,
+                        "is_metal": UniversalChemicalResolver._is_metal_structure(s),
+                    }
         except Exception:
             pass
         return None
@@ -100,12 +97,7 @@ class UniversalChemicalResolver:
         if not query:
             return None
 
-        # Tier 1: Local SQLite Lookup (Zero Network Latency / Immune to Cloud Blocks)
-        local_hit = UniversalChemicalResolver._query_local_db(query)
-        if local_hit:
-            return local_hit
-
-        # Tier 2: Direct SMILES Check
+        # 1. Direct SMILES Check
         mol = Chem.MolFromSmiles(query)
         if mol:
             return {
@@ -115,37 +107,74 @@ class UniversalChemicalResolver:
                 "is_metal": UniversalChemicalResolver._is_metal_structure(query),
             }
 
+        # 2. Local SQLite Database Cache Check
+        if os.path.exists(UniversalChemicalResolver.DB_PATH):
+            try:
+                conn = sqlite3.connect(UniversalChemicalResolver.DB_PATH)
+                c = conn.cursor()
+                c.execute("SELECT name, smiles, cid FROM chemicals WHERE cas = ? OR LOWER(name) = ?", (query, query.lower()))
+                row = c.fetchone()
+                conn.close()
+                if row:
+                    return {
+                        "cid": row[2],
+                        "name": row[0],
+                        "smiles": row[1],
+                        "is_metal": UniversalChemicalResolver._is_metal_structure(row[1]),
+                    }
+            except Exception:
+                pass
+
         session = requests.Session()
         session.headers.update(UniversalChemicalResolver.HEADERS)
 
-        # Tier 3: NIH PubChem Direct PUG-REST (CID -> Properties)
+        # 3. Dedicated CAS Registry Number Endpoint in PubChem (XRef RN)
+        if re.match(r"^\d{2,7}-\d{2}-\d$", query):
+            try:
+                rn_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/xref/RN/{query}/cids/JSON"
+                r_rn = session.get(rn_url, timeout=5)
+                if r_rn.status_code == 200:
+                    cids = r_rn.json().get("IdentifierList", {}).get("CID", [])
+                    if cids:
+                        res = UniversalChemicalResolver._fetch_props_by_cid(session, cids[0], query)
+                        if res:
+                            return res
+            except Exception:
+                pass
+
+        # 4. Standard Name/Synonym PubChem Lookup
         try:
-            # Query CID list first
-            cids_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(query)}/cids/JSON"
-            r_cid = session.get(cids_url, timeout=4)
-            if r_cid.status_code == 200:
-                cids = r_cid.json().get("IdentifierList", {}).get("CID", [])
+            name_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(query)}/cids/JSON"
+            r_name = session.get(name_url, timeout=5)
+            if r_name.status_code == 200:
+                cids = r_name.json().get("IdentifierList", {}).get("CID", [])
                 if cids:
-                    cid = cids[0]
-                    prop_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/IUPACName,CanonicalSMILES/JSON"
-                    r_prop = session.get(prop_url, timeout=4)
-                    if r_prop.status_code == 200:
-                        props = r_prop.json().get("PropertyTable", {}).get("Properties", [])
-                        if props:
-                            s = props[0].get("CanonicalSMILES")
-                            return {
-                                "cid": cid,
-                                "name": props[0].get("IUPACName", query),
-                                "smiles": s,
-                                "is_metal": UniversalChemicalResolver._is_metal_structure(s),
-                            }
+                    res = UniversalChemicalResolver._fetch_props_by_cid(session, cids[0], query)
+                    if res:
+                        return res
         except Exception:
             pass
 
-        # Tier 4: University of Cambridge OPSIN Parser
+        # 5. NIH CIR (Cactus) Fallback
+        try:
+            cir_url = f"https://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(query)}/smiles"
+            r_cir = session.get(cir_url, timeout=5)
+            if r_cir.status_code == 200 and r_cir.text.strip() and "<html" not in r_cir.text.lower():
+                s_cand = r_cir.text.strip().split("\n")[0]
+                if Chem.MolFromSmiles(s_cand) or "[" in s_cand:
+                    return {
+                        "cid": None,
+                        "name": query,
+                        "smiles": s_cand,
+                        "is_metal": UniversalChemicalResolver._is_metal_structure(s_cand),
+                    }
+        except Exception:
+            pass
+
+        # 6. University of Cambridge OPSIN Parser
         try:
             opsin_url = f"https://opsin.ch.cam.ac.uk/opsin/{requests.utils.quote(query)}.json"
-            r_op = session.get(opsin_url, timeout=4)
+            r_op = session.get(opsin_url, timeout=5)
             if r_op.status_code == 200:
                 s_cand = r_op.json().get("smiles")
                 if s_cand and (Chem.MolFromSmiles(s_cand) or "[" in s_cand):
@@ -190,6 +219,7 @@ class ChemistAgent:
         "Acyl_Transfer_Halide": "[CX3](=[OX1])[Cl,Br,I]",
         "Acyl_Transfer_Isocyanate": "[NX2]=[CX2]=[OX1]",
         "Prohapten_Aromatic_Primary_Amine": "c1ccccc1[NX3H2]",
+        "Prohapten_Bisphenol_Core": "c1cc(O)ccc1Cc2ccc(O)cc2",
     }
 
     METALLIC_SENSITIZERS = {
@@ -401,7 +431,7 @@ tab_single, tab_sketch, tab_batch = st.tabs([
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="65-85-0")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="620-92-8")
     with col_btn:
         st.write("")
         st.write("")
@@ -456,7 +486,7 @@ with tab_sketch:
     components.html(jsme_html, height=450)
 
     st.markdown("#### Submit Sketched Structure")
-    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="C1=CC=C(C=C1)C(=O)O")
+    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="Oc1ccc(Cc2ccc(O)cc2)cc1")
     if st.button("🚀 Predict from Sketched Structure", type="primary"):
         with st.spinner("Analyzing sketched molecule..."):
             res = process_single_chemical(sketched_smiles)
@@ -473,8 +503,8 @@ with tab_batch:
     st.write("File must contain at least one column labeled `CAS`, `CASRN`, `Name`, `Compound`, or `SMILES`.")
 
     sample_df = pd.DataFrame({
-        "CAS": ["65-85-0", "7440-02-0", "62-53-3", "79-06-1", "79-10-7", "111-44-4", "50-00-0"],
-        "Compound_Name": ["Benzoic acid", "Nickel", "Aniline", "Acrylamide", "Acrylic acid", "Bis(2-chloroethyl) ether", "Formaldehyde"],
+        "CAS": ["620-92-8", "65-85-0", "7440-02-0", "62-53-3", "79-06-1", "79-10-7"],
+        "Compound_Name": ["Bisphenol F", "Benzoic acid", "Nickel", "Aniline", "Acrylamide", "Acrylic acid"],
     })
     csv_template = sample_df.to_csv(index=False).encode("utf-8")
     st.download_button(
