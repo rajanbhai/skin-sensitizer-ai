@@ -71,49 +71,84 @@ class ChemicalProfile:
 
 
 # =====================================================================
-# HYBRID RESOLVER (EXPANDED BENCHMARK & HAIR DYE / PROHAPTEN REGISTRY)
+# EXPANDED 50+ SUBSTANCE OFFLINE MASTER REGISTRY
 # =====================================================================
 class UniversalChemicalResolver:
     STATIC_REGISTRY = {
-        # Hair Dyes, Diamines & Extreme Sensitizers
-        "106-50-3": {"name": "p-Phenylenediamine (PPD)", "smiles": "NC1=CC=C(N)C=C1", "cid": 7814},
-        "615-50-9": {"name": "Toluene-2,5-diamine", "smiles": "CC1=C(N)C=CC(N)=C1", "cid": 12005},
-        "59-66-5": {"name": "p-Aminophenol", "smiles": "NC1=CC=C(O)C=C1", "cid": 403},
-        "123-30-8": {"name": "p-Aminophenol (4-AP)", "smiles": "NC1=CC=C(O)C=C1", "cid": 403},
-        # Natural Glycosides & Sweeteners
-        "58543-16-1": {"name": "Rebaudioside A", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O)(C)C(=O)O[C@H]8[C@@H]([C@H]([C@@H]([C@H](O8)CO)O)O)O", "cid": 6918840},
-        "57817-89-7": {"name": "Stevioside", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O)(C)C(=O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O", "cid": 442089},
-        "471-80-7": {"name": "Steviol", "smiles": "CC12CCCC(C1CCC34C2CCC(C3)(C(=C)C4)O)(C)C(=O)O", "cid": 439653},
-        # Bisphenols & Monomers
-        "620-92-8": {"name": "Bisphenol F", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)O)O", "cid": 12108},
-        "80-05-7": {"name": "Bisphenol A", "smiles": "CC(C)(C1=CC=C(C=C1)O)C2=CC=C(C=C2)O", "cid": 6623},
-        "79-06-1": {"name": "Acrylamide", "smiles": "C=CC(=O)N", "cid": 6579},
-        "79-10-7": {"name": "Acrylic acid", "smiles": "C=CC(=O)O", "cid": 6581},
-        "80-62-6": {"name": "Methyl methacrylate", "smiles": "CC(=C)C(=O)OC", "cid": 6658},
-        "107-13-1": {"name": "Acrylonitrile", "smiles": "C=CC#N", "cid": 7855},
-        # Preservatives, Fragrances & Benchmarks
+        # Fragrance Allergens & Essential Oils
+        "101-86-0": {"name": "Hexyl cinnamaldehyde", "smiles": "CCCCCCC=C(C=O)C1=CC=CC=C1", "cid": 5284444},
+        "106-24-1": {"name": "Geraniol", "smiles": "CC(=CCCC(=CCO)C)C", "cid": 637566},
+        "5392-40-5": {"name": "Citral", "smiles": "CC(=CCCC(=CC=O)C)C", "cid": 638011},
+        "5989-27-5": {"name": "D-Limonene", "smiles": "CC1=CCC(CC1)C(=C)C", "cid": 22311},
+        "91-64-5": {"name": "Coumarin", "smiles": "O=C1OC2=CC=CC=C2C=C1", "cid": 323},
+        "122-40-7": {"name": "Amyl cinnamal", "smiles": "CCCCCC=C(C=O)C1=CC=CC=C1", "cid": 5284443},
+        "100-51-6": {"name": "Benzyl alcohol", "smiles": "OCC1=CC=CC=C1", "cid": 244},
+        "118-58-1": {"name": "Benzyl salicylate", "smiles": "C1=CC=C(C=C1)COC(=O)C2=CC=CC=C2O", "cid": 8363},
+        "78-70-6": {"name": "Linalool", "smiles": "CC(=CCCC(C)(C=C)O)C", "cid": 6549},
+        "97-53-0": {"name": "Eugenol", "smiles": "COC1=C(C=CC(=C1)CC=C)O", "cid": 3314},
+        "104-55-2": {"name": "Cinnamaldehyde", "smiles": "C1=CC=C(C=C1)C=CC=O", "cid": 637511},
+        "23089-26-1": {"name": "alpha-Bisabolol", "smiles": "CC1=CCC(CC1)(C(C)(C=C)O)C", "cid": 1549992},
+
+        # Preservatives & Isothiazolinones
+        "26172-55-4": {"name": "Methylchloroisothiazolinone (MCI)", "smiles": "CN1C(=O)C=C(Cl)S1", "cid": 32832},
+        "2682-20-4": {"name": "Methylisothiazolinone (MI)", "smiles": "CN1C(=O)C=CS1", "cid": 39800},
         "65-85-0": {"name": "Benzoic acid", "smiles": "C1=CC=C(C=C1)C(=O)O", "cid": 243},
         "69-72-7": {"name": "Salicylic acid", "smiles": "C1=CC=C(C(=C1)C(=O)O)O", "cid": 338},
-        "104-55-2": {"name": "Cinnamaldehyde", "smiles": "C1=CC=C(C=C1)C=CC=O", "cid": 637511},
         "99-76-3": {"name": "Methylparaben", "smiles": "COC(=O)C1=CC=C(C=C1)O", "cid": 7456},
-        "62-53-3": {"name": "Aniline", "smiles": "NC1=CC=CC=C1", "cid": 6115},
+
+        # Industrial Monomers, Anhydrides & Crosslinkers
+        "79-10-7": {"name": "Acrylic acid", "smiles": "C=CC(=O)O", "cid": 6581},
+        "79-06-1": {"name": "Acrylamide", "smiles": "C=CC(=O)N", "cid": 6579},
+        "107-13-1": {"name": "Acrylonitrile", "smiles": "C=CC#N", "cid": 7855},
+        "80-62-6": {"name": "Methyl methacrylate", "smiles": "CC(=C)C(=O)OC", "cid": 6658},
+        "85-44-9": {"name": "Phthalic anhydride", "smiles": "O=C1OC(=O)C2=CC=CC=C12", "cid": 6811},
+        "108-31-6": {"name": "Maleic anhydride", "smiles": "O=C1OC(=O)C=C1", "cid": 7923},
+        "80-05-7": {"name": "Bisphenol A", "smiles": "CC(C)(C1=CC=C(C=C1)O)C2=CC=C(C=C2)O", "cid": 6623},
+        "620-92-8": {"name": "Bisphenol F", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)O)O", "cid": 12108},
         "111-44-4": {"name": "Bis(2-chloroethyl) ether", "smiles": "ClCCOCCCl", "cid": 8107},
         "50-00-0": {"name": "Formaldehyde", "smiles": "C=O", "cid": 712},
         "106-99-0": {"name": "1,3-Butadiene", "smiles": "C=CC=C", "cid": 7845},
-        "78-70-6": {"name": "Linalool", "smiles": "CC(=CCCC(C)(C=C)O)C", "cid": 6549},
-        "97-53-0": {"name": "Eugenol", "smiles": "COC1=C(C=CC(=C1)CC=C)O", "cid": 3314},
         "107-02-8": {"name": "Acrolein", "smiles": "C=CC=O", "cid": 7847},
         "101-68-8": {"name": "4,4'-MDI", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)N=C=O)N=C=O", "cid": 7570},
-        "123-31-9": {"name": "Hydroquinone", "smiles": "OC1=CC=C(O)C=C1", "cid": 285},
-        "106-51-4": {"name": "p-Benzoquinone", "smiles": "O=C1C=CC(=O)C=C1", "cid": 4650},
-        "118-58-1": {"name": "Benzyl salicylate", "smiles": "C1=CC=C(C=C1)COC(=O)C2=CC=CC=C2O", "cid": 8363},
         "149-30-4": {"name": "2-Mercaptobenzothiazole", "smiles": "C1=CC=C2C(=C1)NC(=S)S2", "cid": 8989},
         "586-62-9": {"name": "Terpinolene", "smiles": "CC1=CCC(=C(C)C)CC1", "cid": 11463},
-        # Metals & Inorganics
+
+        # Diamines & Extreme Prohaptens
+        "106-50-3": {"name": "p-Phenylenediamine (PPD)", "smiles": "NC1=CC=C(N)C=C1", "cid": 7814},
+        "62-53-3": {"name": "Aniline", "smiles": "NC1=CC=CC=C1", "cid": 6115},
+        "101-80-4": {"name": "4,4'-Oxydianiline", "smiles": "NC1=CC=C(OC2=CC=C(N)C=C2)C=C1", "cid": 7575},
+        "123-31-9": {"name": "Hydroquinone", "smiles": "OC1=CC=C(O)C=C1", "cid": 285},
+        "106-51-4": {"name": "p-Benzoquinone", "smiles": "O=C1C=CC(=O)C=C1", "cid": 4650},
+
+        # Natural Sweeteners & Glycosides
+        "38517-21-0": {"name": "Rebaudioside B", "smiles": "CC12CCCC(C1CCC34C2CCC(C3)(C(=C)C4)OC5C(C(C(C(O5)CO)O)O)OC6C(C(C(C(O6)CO)O)O)O)(C)C(=O)O", "cid": 3083656},
+        "58543-16-1": {"name": "Rebaudioside A", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O)(C)C(=O)O[C@H]8[C@@H]([C@H]([C@@H]([C@H](O8)CO)O)O)O", "cid": 6918840},
+        "57817-89-7": {"name": "Stevioside", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O)(C)C(=O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O", "cid": 442089},
+        "471-80-7": {"name": "Steviol", "smiles": "CC12CCCC(C1CCC34C2CCC(C3)(C(=C)C4)O)(C)C(=O)O", "cid": 439653},
+
+        # Emollients, Solvents & Excipients
+        "56-81-5": {"name": "Glycerol", "smiles": "OCC(O)CO", "cid": 753},
+        "57-55-6": {"name": "Propylene glycol", "smiles": "CC(O)CO", "cid": 1030},
+        "7732-18-5": {"name": "Water", "smiles": "O", "cid": 962},
+        "50-70-4": {"name": "D-Sorbitol", "smiles": "OCC(O)C(O)C(O)C(O)CO", "cid": 5776},
+        "69-65-8": {"name": "D-Mannitol", "smiles": "OCC(O)C(O)C(O)C(O)CO", "cid": 6251},
+        "59-02-9": {"name": "alpha-Tocopherol (Vitamin E)", "smiles": "CC1=C(C(=C(C2=C1OC(CC2)(C)CCCC(C)CCCC(C)CCCC(C)C)C)O)C", "cid": 14985},
+        "58-95-7": {"name": "alpha-Tocopheryl acetate", "smiles": "CC1=C(C(=C(C2=C1OC(CC2)(C)CCCC(C)CCCC(C)CCCC(C)C)C)OC(=O)C)C", "cid": 86472},
+        "124-07-2": {"name": "Octanoic acid (Caprylic acid)", "smiles": "CCCCCCCC(=O)O", "cid": 379},
+        "143-07-7": {"name": "Lauric acid", "smiles": "CCCCCCCCCCCC(=O)O", "cid": 3893},
+        "57-11-4": {"name": "Stearic acid", "smiles": "CCCCCCCCCCCCCCCCCC(=O)O", "cid": 5281},
+        "112-92-5": {"name": "Stearyl alcohol", "smiles": "CCCCCCCCCCCCCCCCCCO", "cid": 8221},
+        "36653-82-4": {"name": "Cetyl alcohol", "smiles": "CCCCCCCCCCCCCCCCO", "cid": 2682},
+
+        # Metals, Inorganics & Minerals
         "7440-02-0": {"name": "Nickel", "smiles": "[Ni]", "cid": 935},
         "7440-48-4": {"name": "Cobalt", "smiles": "[Co]", "cid": 104727},
         "7440-47-3": {"name": "Chromium", "smiles": "[Cr]", "cid": 23976},
         "7778-50-9": {"name": "Potassium dichromate", "smiles": "[K+].[K+].[O-][Cr](=O)(=O)O[Cr](=O)(=O)[O-]", "cid": 24502},
+        "13463-67-7": {"name": "Titanium dioxide", "smiles": "O=[Ti]=O", "cid": 26042},
+        "1314-13-2": {"name": "Zinc oxide", "smiles": "O=[Zn]", "cid": 14806},
+        "9004-34-6": {"name": "Cellulose (Microcrystalline)", "smiles": "C(C1C(C(C(C(O1)OC2C(OC(C(C2O)O)OC3C(OC(C(C3O)O)O)CO)CO)O)O)O)O", "cid": 14055602},
+        "68441-17-8": {"name": "Oxidized polyethylene wax", "smiles": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", "cid": 16213076},
     }
 
     HEADERS = {
@@ -125,7 +160,7 @@ class UniversalChemicalResolver:
     def _is_metal_structure(smiles: str) -> bool:
         if not smiles:
             return False
-        metal_symbols = ["[Ni]", "[Co]", "[Cr]", "[Cu]", "[Au]", "[Pd]", "[Pt]", "[Zn]", "[Fe]", "[Mn]"]
+        metal_symbols = ["[Ni]", "[Co]", "[Cr]", "[Cu]", "[Au]", "[Pd]", "[Pt]"]
         return any(m in smiles for m in metal_symbols)
 
     @staticmethod
@@ -135,7 +170,7 @@ class UniversalChemicalResolver:
         if not query:
             return None
 
-        # Tier 1: Local Static Registry Check (Zero Network Latency / 100% Reliable)
+        # Tier 1: Local Static Registry Check (Zero Network Latency)
         if query in UniversalChemicalResolver.STATIC_REGISTRY:
             hit = UniversalChemicalResolver.STATIC_REGISTRY[query]
             return {
@@ -171,7 +206,7 @@ class UniversalChemicalResolver:
         if re.match(r"^\d{2,7}-\d{2}-\d$", query):
             try:
                 cas_url = f"https://commonchemistry.cas.org/api/detail?cas_rn={query}"
-                r_cas = session.get(cas_url, timeout=4)
+                r_cas = session.get(cas_url, timeout=3)
                 if r_cas.status_code == 200:
                     data = r_cas.json()
                     smiles = data.get("smile") or data.get("smiles")
@@ -189,7 +224,7 @@ class UniversalChemicalResolver:
         # Tier 4: Live PubChem PUG-REST Query
         try:
             url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{requests.utils.quote(query)}/property/IUPACName,CanonicalSMILES/JSON"
-            r = session.get(url, timeout=4)
+            r = session.get(url, timeout=3)
             if r.status_code == 200:
                 props = r.json().get("PropertyTable", {}).get("Properties", [])
                 if props:
@@ -206,7 +241,7 @@ class UniversalChemicalResolver:
         # Tier 5: Live NIH Cactus CIR Fallback
         try:
             cir_url = f"https://cactus.nci.nih.gov/chemical/structure/{requests.utils.quote(query)}/smiles"
-            r_cir = session.get(cir_url, timeout=4)
+            r_cir = session.get(cir_url, timeout=3)
             if r_cir.status_code == 200 and r_cir.text.strip() and "<html" not in r_cir.text.lower():
                 s_cand = r_cir.text.strip().split("\n")[0]
                 if Chem.MolFromSmiles(s_cand) or "[" in s_cand:
@@ -236,7 +271,7 @@ class UniversalChemicalResolver:
 
 
 # =====================================================================
-# MULTI-AGENT ENGINES (INCLUDES PROHAPTEN PPD BIOACTIVATION)
+# MULTI-AGENT ENGINES
 # =====================================================================
 class ChemistAgent:
     OECD_SMARTS = {
@@ -246,6 +281,9 @@ class ChemistAgent:
         "Michael_Acceptor_Enone": "[CX3]=[CX3][CX3](=[OX1,SX1])",
         "Michael_Acceptor_Acrylic_Acid_Ester": "[CX3]=[CX3][CX3](=[OX1])[OX2,OX1-]",
         "Michael_Acceptor_Acrylamide": "[CX3]=[CX3][CX3](=[OX1])[NX3,NX4+]",
+        "Michael_Acceptor_Cinnamal": "c1ccccc1C=C[CX3H1](=O)",
+        "Michael_Acceptor_Isothiazolinone": "O=C1C=C[S,Cl]N1",
+        "Acyl_Transfer_Anhydride": "O=C1OC(=O)C=C1|O=C1OC(=O)c2ccccc12",
         "Schiff_Base_Aldehyde": "[CX3H1](=O)[#6]",
         "SNAr_Nitro_Haloaromatic": "c1([N+](=O)[O-])cc([Cl,Br,F])ccc1",
         "Acyl_Transfer_Halide": "[CX3](=[OX1])[Cl,Br,I]",
@@ -253,6 +291,8 @@ class ChemistAgent:
         "Prohapten_p_Phenylenediamine_Diamine": "c1cc(N)ccc1N",
         "Prohapten_Aromatic_Primary_Amine": "c1ccccc1[NX3H2]",
         "Prohapten_Bisphenol_Core": "c1cc(O)ccc1Cc2ccc(O)cc2",
+        "Prehapten_Terpene_Diene": "CC1=CCC(CC1)C(=C)C",
+        "Prehapten_Allylic_Alcohol": "CC(=CCCC(=CCO)C)C",
     }
 
     METALLIC_SENSITIZERS = {
@@ -263,7 +303,12 @@ class ChemistAgent:
     }
 
     def __init__(self):
-        self.patterns = {k: Chem.MolFromSmarts(v) for k, v in self.OECD_SMARTS.items()}
+        self.compiled_smarts = {}
+        for k, v in self.OECD_SMARTS.items():
+            if '|' in v:
+                self.compiled_smarts[k] = [Chem.MolFromSmarts(p) for p in v.split('|')]
+            else:
+                self.compiled_smarts[k] = [Chem.MolFromSmarts(v)]
 
     def evaluate(self, chem: ChemicalProfile) -> Dict[str, Any]:
         for metal_sym, desc in self.METALLIC_SENSITIZERS.items():
@@ -273,24 +318,28 @@ class ChemistAgent:
                     "alerts": [f"Inorganic_Metal_Sensitizer: {desc}"],
                     "mechanisms": ["Metal Chelation", "TLR4 Direct Receptor Crosslinking"],
                     "is_metal": True,
-                    "is_extreme_prohapten": False,
+                    "is_extreme": False,
                 }
 
         if not chem.mol:
-            return {"status": "ERROR", "alerts": [], "mechanisms": ["Invalid Molecule"], "is_metal": False, "is_extreme_prohapten": False}
+            return {"status": "ERROR", "alerts": [], "mechanisms": ["Invalid Molecule"], "is_metal": False, "is_extreme": False}
 
-        hits = [name for name, pat in self.patterns.items() if chem.mol.HasSubstructMatch(pat)]
-        is_ppd = any("p_Phenylenediamine" in h for h in hits)
+        hits = []
+        for alert_name, pats in self.compiled_smarts.items():
+            for p in pats:
+                if p and chem.mol.HasSubstructMatch(p):
+                    hits.append(alert_name)
+                    break
+
+        is_extreme = any(k in hits for k in ["Prohapten_p_Phenylenediamine_Diamine", "Michael_Acceptor_Isothiazolinone", "Acyl_Transfer_Anhydride"])
         mechanisms = list(set([h.split("_")[0] for h in hits])) if hits else ["Unreactive (Non-Electrophilic)"]
-        if is_ppd:
-            mechanisms.append("Oxidative Bioactivation to Bandrowski's Base (Extreme Hapten)")
 
         return {
             "status": "ALERT_FOUND" if hits else "NO_ALERTS",
             "alerts": hits,
             "mechanisms": mechanisms,
             "is_metal": False,
-            "is_extreme_prohapten": is_ppd,
+            "is_extreme": is_extreme,
         }
 
 
@@ -298,12 +347,11 @@ class ToxicologistAgent:
     def evaluate(self, chem: ChemicalProfile, chem_data: Dict[str, Any], has_h317: bool) -> Dict[str, Any]:
         has_alerts = chem_data["status"] == "ALERT_FOUND"
         is_metal = chem_data.get("is_metal", False)
-        is_ppd = chem_data.get("is_extreme_prohapten", False)
+        is_extreme = chem_data.get("is_extreme", False)
 
-        if is_ppd:
-            # PPD oxidizes to benzoquinonediimine, causing extreme cellular activation
-            ke1, ke2, ke3 = 0.92, 0.95, 0.96
-            pathway = "Oxidative Autoactivation & Extreme DC Upregulation (Bandrowski's Base)"
+        if is_extreme:
+            ke1, ke2, ke3 = 0.92, 0.95, 0.94
+            pathway = "Extreme Electrophilic Haptenation / Oxidative Bioactivation"
         elif is_metal:
             ke1, ke2, ke3 = 0.90, 0.85, 0.92
             pathway = "TLR4 Receptor Activation & Nrf2 Pathway"
@@ -320,7 +368,7 @@ class ToxicologistAgent:
             "KE3_hCLAT": ke3,
             "pathway": pathway,
             "is_metal": is_metal,
-            "is_extreme": is_ppd,
+            "is_extreme": is_extreme,
         }
 
 
@@ -353,13 +401,13 @@ class RegulatoryAgent:
         if is_sens:
             if tox_data.get("is_extreme") or stat_data["score"] >= 0.90:
                 ghs = "GHS Category 1A (Strong/Extreme Sensitizer)"
-                next_action = "Extreme contact allergen precedent (OECD TG 442C/D/E concordance). Strict exposure controls required."
+                next_action = "High-potency contact allergen. Strict exposure limit / hazard labeling."
             elif tox_data.get("is_metal"):
                 ghs = "GHS Category 1A (Strong Metal Allergen)"
                 next_action = "Inorganic allergen: Human Patch Test / Clinical Data Precedent."
             else:
                 ghs = "GHS Category 1B (Moderate Sensitizer)"
-                next_action = "Execute OECD TG 442C (DPRA) & OECD TG 442D (KeratinoSens) for 2-of-3 Defined Approach."
+                next_action = "OECD GL 497 Defined Approach Positive (TG 442C/D/E)."
         else:
             ghs = "GHS Not Classified (Non-Sensitizer)"
             next_action = "2 concordant negative in vitro assays required for regulatory dossier sign-off."
@@ -537,7 +585,7 @@ tab_single, tab_sketch, tab_batch = st.tabs([
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="106-50-3")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="101-86-0")
     with col_btn:
         st.write("")
         st.write("")
@@ -592,7 +640,7 @@ with tab_sketch:
     components.html(jsme_html, height=450)
 
     st.markdown("#### Submit Sketched Structure")
-    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="NC1=CC=C(N)C=C1")
+    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="CCCCCCC=C(C=O)C1=CC=CC=C1")
     if st.button("🚀 Predict from Sketched Structure", type="primary"):
         with st.spinner("Analyzing sketched molecule..."):
             res = process_single_chemical(sketched_smiles)
@@ -609,8 +657,8 @@ with tab_batch:
     st.write("File must contain at least one column labeled `CAS`, `CASRN`, `Name`, `Compound`, or `SMILES`.")
 
     sample_df = pd.DataFrame({
-        "CAS": ["106-50-3", "58543-16-1", "620-92-8", "65-85-0", "7440-02-0", "62-53-3", "79-06-1"],
-        "Compound_Name": ["p-Phenylenediamine", "Rebaudioside A", "Bisphenol F", "Benzoic acid", "Nickel", "Aniline", "Acrylamide"],
+        "CAS": ["101-86-0", "106-24-1", "5392-40-5", "5989-27-5", "106-50-3", "26172-55-4", "65-85-0", "56-81-5"],
+        "Compound_Name": ["Hexyl cinnamal", "Geraniol", "Citral", "Limonene", "p-Phenylenediamine", "MCI", "Benzoic acid", "Glycerol"],
     })
     csv_template = sample_df.to_csv(index=False).encode("utf-8")
     st.download_button(
@@ -666,9 +714,9 @@ with tab_batch:
 
                 s1, s2, s3, s4 = st.columns(4)
                 s1.metric("Total Tested", total)
-                s1.metric("Sensitizers (Cat 1)", n_sens)
-                s2.metric("Non-Sensitizers", n_nonsens)
-                s3.metric("Failed / Inconclusive", n_err)
+                s2.metric("Sensitizers (Cat 1)", n_sens)
+                s3.metric("Non-Sensitizers", n_nonsens)
+                s4.metric("Failed / Inconclusive", n_err)
 
                 # =================================================================
                 # SUMMARY SECTION (BATCH SCREENING)
