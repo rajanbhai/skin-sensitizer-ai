@@ -28,6 +28,22 @@ st.caption(
     "Automated Defined Approach based on **OECD Guideline 497**, Organic SMARTS alerts, Inorganic/Metal Chelation profiler, and hybrid offline/online chemical resolution."
 )
 
+# Sidebar Credits & Info
+with st.sidebar:
+    st.markdown("### 🔬 Multi-Agent AI Framework")
+    st.markdown(
+        """
+        - **Bot 1:** Organic/Metal Chemist (SMARTS Alerts)
+        - **Bot 2:** In Silico Toxicologist (AOP Key Events 1-3)
+        - **Bot 3:** Consensus Statistician (Defined Approach)
+        - **Bot 4:** Regulatory Agent (UN GHS / OECD GL 497)
+        - **Bot 5:** QA & Audit Agent (SHA-256 Verification)
+        """
+    )
+    st.markdown("---")
+    st.markdown("💡 **Credits & Authorship**")
+    st.markdown("Created by **Dr. Rahul Anant Date** with **Gemini AI**")
+
 # =====================================================================
 # DATA MODELS
 # =====================================================================
@@ -624,9 +640,9 @@ with tab_batch:
 
                 s1, s2, s3, s4 = st.columns(4)
                 s1.metric("Total Tested", total)
-                s2.metric("Sensitizers (Cat 1)", n_sens)
-                s3.metric("Non-Sensitizers", n_nonsens)
-                s4.metric("Failed / Inconclusive", n_err)
+                s1.metric("Sensitizers (Cat 1)", n_sens)
+                s2.metric("Non-Sensitizers", n_nonsens)
+                s3.metric("Failed / Inconclusive", n_err)
 
                 # =================================================================
                 # SUMMARY SECTION (BATCH SCREENING)
@@ -668,3 +684,21 @@ with tab_batch:
 
         except Exception as e:
             st.error(f"Error reading file: {e}")
+
+# =====================================================================
+# GLOBAL FOOTER CREDITS
+# =====================================================================
+st.markdown("---")
+st.markdown(
+    """
+    <div style="text-align: center; padding: 18px 0; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; margin-top: 30px;">
+        <p style="margin: 0; font-weight: 500;">
+            🧪 <strong>Multi-Agent Skin Sensitizer AI</strong> | Compliant with <strong>OECD Guideline 497</strong> &amp; <strong>UN GHS</strong>
+        </p>
+        <p style="margin: 6px 0 0 0; color: #475569;">
+            Created by <strong>Dr. Rahul Anant Date</strong> with <strong>Gemini AI</strong>
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
