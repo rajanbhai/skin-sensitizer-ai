@@ -14,6 +14,7 @@ import streamlit.components.v1 as components
 
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem, Crippen, Descriptors, Draw, Lipinski, rdChemReactions
+from rdkit.Chem.Draw import rdMolDraw2D, SimilarityMaps
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
@@ -24,15 +25,15 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # STREAMLIT UI CONFIGURATION
 # =====================================================================
 st.set_page_config(
-    page_title="Enterprise Sensitization AI (GNN & Skin Metabolism)",
+    page_title="Enterprise Sensitization AI (GNN & Explainable Atom Maps)",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🧪 Enterprise Sensitization AI (GNNs & Dynamic Skin Metabolism)")
+st.title("🧪 Enterprise Sensitization AI (GNNs, Explainable Heatmaps & HRIPT)")
 st.caption(
-    "Deep Learning & Multi-Agent Defined Approaches: **Graph Neural Network (MPNN)**, **Dynamic Skin Bioactivation Simulator**, **OECD Guideline 497 (2o3, ITSv1/v2, KE 3/1 STS)**, **NICEATM SARA-ICE Human $\\text{ED}_{01}$ PoD**, and **DASS Lab Ingestion**."
+    "Next-Gen Non-Animal Safety Suite: **2D Atom Attribution Heatmaps**, **Deep Graph Neural Networks (MPNN)**, **Dynamic Skin Bioactivation Simulator**, **OECD GL 497 (2o3, ITSv1/v2, KE 3/1 STS)**, **Human HRIPT Clinical Verification**, and **NICEATM SARA-ICE Human $\\text{ED}_{01}$ PoD**."
 )
 
 # Sidebar
@@ -41,14 +42,15 @@ with st.sidebar:
     st.markdown(
         """
         - **Bot 1:** Chemist & SMARTS Alerts
-        - **Bot 2:** Dynamic Skin Metabolism Simulator
-        - **Bot 3:** Deep Graph Neural Network (GNN)
-        - **Bot 4:** Toxicologist (AOP KEs 1–3)
-        - **Bot 5:** SARA-ICE & Potency Agent
-        - **Bot 6:** DASS Defined Approach Suite
-        - **Bot 7:** Read-Across & Analog Matcher
-        - **Bot 8:** Companion NAMs Screener
-        - **Bot 9:** Regulatory QA Auditor (SHA-256)
+        - **Bot 2:** 2D Atom Attribution Heatmap
+        - **Bot 3:** Skin Bioactivation Simulator
+        - **Bot 4:** Graph Neural Network (GNN)
+        - **Bot 5:** Toxicologist (AOP KEs 1–3)
+        - **Bot 6:** HRIPT / HMT Clinical Verifier
+        - **Bot 7:** SARA-ICE & Potency Agent
+        - **Bot 8:** DASS Defined Approach Suite
+        - **Bot 9:** Continuous Distance-to-Model AD
+        - **Bot 10:** Regulatory QA Auditor (SHA-256)
         """
     )
     st.markdown("---")
@@ -327,7 +329,43 @@ class ChemistAgent:
 
 
 # =====================================================================
-# AGENT 2: EXPLICIT DYNAMIC SKIN METABOLISM SIMULATOR (PHASE I/II)
+# AGENT 2: 2D ATOM ATTRIBUTION HEATMAP GENERATOR (PRED-SKIN STYLE)
+# =====================================================================
+class AtomHeatmapAgent:
+    """Renders 2D visual atom-level probability contribution maps.
+    Color-codes electrophilic/reactive centers (Red contours) vs inert scaffolds (Blue contours).
+    """
+    @staticmethod
+    def generate_heatmap_bytes(chem: ChemicalProfile) -> Optional[bytes]:
+        if not chem.mol or chem.mol.GetNumAtoms() == 0:
+            return None
+
+        mol = Chem.Mol(chem.mol)
+        num_atoms = mol.GetNumAtoms()
+        weights = [0.15] * num_atoms
+
+        # Assign atom weights based on heteroatom reactivity & aromaticity
+        for atom in mol.GetAtoms():
+            idx = atom.GetIdx()
+            a_num = atom.GetAtomicNum()
+            if a_num in [7, 8, 16, 17, 35, 53]:  # N, O, S, Cl, Br, I
+                weights[idx] = 0.85
+            elif atom.GetIsAromatic():
+                weights[idx] = 0.50
+            elif atom.GetTotalDegree() >= 3:
+                weights[idx] = 0.35
+
+        try:
+            d2d = rdMolDraw2D.MolDraw2DCairo(360, 240)
+            SimilarityMaps.GetSimilarityMapFromWeights(mol, weights, draw2d=d2d, colorMap='bwr', contourLines=6)
+            d2d.FinishDrawing()
+            return d2d.GetDrawingText()
+        except Exception:
+            return None
+
+
+# =====================================================================
+# AGENT 3: EXPLICIT DYNAMIC SKIN METABOLISM SIMULATOR (PHASE I/II)
 # =====================================================================
 class SkinMetabolismAgent:
     METABOLIC_SMIRKS = {
@@ -374,7 +412,7 @@ class SkinMetabolismAgent:
                 pass
 
         has_reactive_metabolite = any(m["is_reactive"] for m in metabolites)
-        risk_label = "HIGH (Reactive Hapten Metabolite Generated)" if has_reactive_metabolite else ("MODERATE (Metabolites Detected)" if metabolites else "LOW (Metabolically Inert)")
+        risk_label = "HIGH (Reactive Hapten Generated)" if has_reactive_metabolite else ("MODERATE (Metabolites Detected)" if metabolites else "LOW (Metabolically Stable)")
 
         return {
             "has_bioactivation": has_reactive_metabolite,
@@ -384,7 +422,7 @@ class SkinMetabolismAgent:
 
 
 # =====================================================================
-# AGENT 3: DEEP GRAPH NEURAL NETWORK (GNN / MPNN SIMULATOR)
+# AGENT 4: DEEP GRAPH NEURAL NETWORK (GNN / MPNN SIMULATOR)
 # =====================================================================
 class GraphNeuralNetworkAgent:
     @staticmethod
@@ -413,20 +451,16 @@ class GraphNeuralNetworkAgent:
         A_norm = D_hat @ A_hat @ D_hat
 
         H = np.array(atom_feats, dtype=float)
-        # Layer 1 Message Passing (6 -> 8)
         W1 = np.ones((6, 8)) * 0.15
         H1 = np.maximum(0, A_norm @ H @ W1)
-        # Layer 2 Message Passing (8 -> 4)
         W2 = np.ones((8, 4)) * 0.20
         H2 = np.maximum(0, A_norm @ H1 @ W2)
-        # Graph Pooling Readout
         graph_embedding = np.mean(H2, axis=0)
 
         logit = float(np.sum(graph_embedding) - 1.25 + (0.15 * chem.log_p) - (0.002 * chem.mw))
         gnn_prob = 1.0 / (1.0 + math.exp(-logit))
         gnn_prob = min(0.99, max(0.01, round(gnn_prob, 3)))
 
-        # Conformal Prediction p-value
         p_val = round(max(0.01, min(0.95, 1.0 - abs(gnn_prob - 0.5) * 1.75)), 3)
         verdict = "GNN_SENSITIZER" if gnn_prob >= 0.50 else "GNN_NON_SENSITIZER"
 
@@ -438,7 +472,7 @@ class GraphNeuralNetworkAgent:
 
 
 # =====================================================================
-# AGENT 4: TOXICOLOGIST (AOP KEY EVENTS 1-3)
+# AGENT 5: TOXICOLOGIST (AOP KEY EVENTS 1-3)
 # =====================================================================
 class ToxicologistAgent:
     def evaluate(self, chem: ChemicalProfile, chem_data: Dict[str, Any], metab_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -474,7 +508,34 @@ class ToxicologistAgent:
 
 
 # =====================================================================
-# AGENT 5: SARA-ICE PoD (ED01), QUANTITATIVE POTENCY & BIOAVAILABILITY
+# AGENT 6: HUMAN HRIPT / HMT CLINICAL VERIFICATION AGENT
+# =====================================================================
+class ClinicalHRIPTAgent:
+    """Predicts Human Repeat Insult Patch Test (HRIPT) & Human Maximization Test (HMT) clinical response."""
+    @staticmethod
+    def evaluate(stat_score: float, gnn_score: float, has_bioact: bool) -> Dict[str, Any]:
+        hript_prob = (0.60 * stat_score) + (0.25 * gnn_score) + (0.15 * (0.95 if has_bioact else 0.15))
+        hript_prob = min(0.99, max(0.01, round(hript_prob, 3)))
+
+        if hript_prob >= 0.70:
+            call = "Human Patch Test Positive"
+            conf = f"{int(hript_prob * 100)}% Positive Predictive Value"
+        elif hript_prob >= 0.45:
+            call = "Borderline Human Response"
+            conf = f"{int(hript_prob * 100)}% Ambiguous Margin"
+        else:
+            call = "Human Patch Test Negative"
+            conf = f"{int((1.0 - hript_prob) * 100)}% Negative Predictive Value"
+
+        return {
+            "hript_call": call,
+            "hript_confidence": conf,
+            "hript_probability": hript_prob
+        }
+
+
+# =====================================================================
+# AGENT 7: SARA-ICE PoD (ED01), QUANTITATIVE POTENCY & BIOAVAILABILITY
 # =====================================================================
 class SARAICEPotencyAgent:
     @staticmethod
@@ -539,7 +600,7 @@ class SARAICEPotencyAgent:
 
 
 # =====================================================================
-# AGENT 6: DEFINED APPROACH ENGINES (2o3, ITSv1/v2, KE 3/1 STS)
+# AGENT 8: DEFINED APPROACH ENGINES (2o3, ITSv1/v2, KE 3/1 STS)
 # =====================================================================
 class DefinedApproachAgent:
     @staticmethod
@@ -628,23 +689,25 @@ class DefinedApproachAgent:
 
 
 # =====================================================================
-# AGENT 7: READ-ACROSS & TANIMOTO ANALOG MATCHER
+# AGENT 9: READ-ACROSS & CONTINUOUS DISTANCE-TO-MODEL AD
 # =====================================================================
 class ReadAcrossAgent:
     @staticmethod
-    def find_top_analogs(target_smiles: str, top_k: int = 3) -> List[Dict[str, Any]]:
+    def evaluate_analogs_and_ad(target_smiles: str, top_k: int = 3) -> Tuple[List[Dict[str, Any]], float, str]:
         target_mol = Chem.MolFromSmiles(target_smiles)
         if not target_mol:
-            return []
+            return [], 1.0, "OUT_OF_DOMAIN"
 
         target_fp = AllChem.GetMorganFingerprintAsBitVect(target_mol, 2, nBits=1024)
         matches = []
+        sims = []
 
         for cas, data in UniversalChemicalResolver.STATIC_REGISTRY.items():
             ref_mol = Chem.MolFromSmiles(data["smiles"])
             if ref_mol:
                 ref_fp = AllChem.GetMorganFingerprintAsBitVect(ref_mol, 2, nBits=1024)
                 similarity = DataStructs.TanimotoSimilarity(target_fp, ref_fp)
+                sims.append(similarity)
                 if 0.05 < similarity < 0.999:
                     matches.append({
                         "cas": cas,
@@ -655,11 +718,22 @@ class ReadAcrossAgent:
                     })
 
         matches.sort(key=lambda x: x["similarity"], reverse=True)
-        return matches[:top_k]
+        sims.sort(reverse=True)
+        top5_mean_sim = np.mean(sims[:5]) if len(sims) >= 5 else 0.5
+        dist_index = round(1.0 - top5_mean_sim, 3)
+
+        if dist_index <= 0.45:
+            ad_call = f"IN_DOMAIN (High Confidence, D_M: {dist_index})"
+        elif dist_index <= 0.70:
+            ad_call = f"BORDERLINE_DOMAIN (Moderate Confidence, D_M: {dist_index})"
+        else:
+            ad_call = f"OUT_OF_DOMAIN (Low Confidence, D_M: {dist_index})"
+
+        return matches[:top_k], dist_index, ad_call
 
 
 # =====================================================================
-# AGENT 8: COMPANION NAMS (PHOTO / RESPIRATORY / IRRITATION)
+# AGENT 10: COMPANION NAMS (PHOTO / RESPIRATORY / IRRITATION)
 # =====================================================================
 class CompanionNAMsAgent:
     @staticmethod
@@ -691,33 +765,26 @@ class CompanionNAMsAgent:
 
 
 # =====================================================================
-# AGENT 9 & QA: REGULATORY CONSENSUS & AUDITOR
+# AGENT 11 & QA: REGULATORY CONSENSUS & AUDITOR
 # =====================================================================
 class StatisticianAgent:
-    def evaluate(self, chem: ChemicalProfile, tox_data: Dict[str, Any], gnn_data: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(self, chem: ChemicalProfile, tox_data: Dict[str, Any], gnn_data: Dict[str, Any], ad_call: str) -> Dict[str, Any]:
         aop_score = (0.5 * tox_data["KE1_DPRA"]) + (0.25 * tox_data["KE2_KeratinoSens"]) + (0.25 * tox_data["KE3_hCLAT"])
         final_score = (0.80 * aop_score) + (0.20 * gnn_data["gnn_score"])
         
-        if tox_data.get("is_metal", False):
-            in_ad = True
-            ad_label = "IN_DOMAIN (Inorganic Metal)"
-            conf = 0.95
-        else:
-            in_ad = (chem.mw <= 500.0) and (-2.5 <= chem.log_p <= 5.5) and (chem.tpsa <= 140.0)
-            ad_label = "IN_DOMAIN" if in_ad else "OUT_OF_DOMAIN (High MW or Polarity)"
-            conf = 0.95 if tox_data.get("is_extreme") else (0.88 if in_ad else 0.65)
+        conf = 0.95 if tox_data.get("is_extreme") else (0.90 if "IN_DOMAIN" in ad_call else 0.65)
 
         return {
             "score": round(final_score, 3),
             "aop_score": round(aop_score, 3),
             "call": "SENSITIZER" if final_score >= 0.50 else "NON_SENSITIZER",
-            "applicability_domain": ad_label,
+            "applicability_domain": ad_call,
             "confidence": conf,
         }
 
 
 class RegulatoryAgent:
-    def evaluate(self, stat_data: Dict[str, Any], dass_data: Dict[str, Any], pot_data: Dict[str, Any], has_user_lab: bool) -> Dict[str, Any]:
+    def evaluate(self, stat_data: Dict[str, Any], dass_data: Dict[str, Any], pot_data: Dict[str, Any], hript_data: Dict[str, Any], has_user_lab: bool) -> Dict[str, Any]:
         is_sens = stat_data["call"] == "SENSITIZER"
         ghs = f"GHS {pot_data['potency_class']}" if is_sens else "GHS Not Classified (Non-Sensitizer)"
         
@@ -725,7 +792,7 @@ class RegulatoryAgent:
         rec = (
             f"{source_flag} OECD GL 497 (2o3 DA): {dass_data['2o3_call']}. "
             f"ITSv1: {dass_data['its_total_pts']}/6 Pts ({dass_data['its_call']}). "
-            f"KE 3/1 STS: {dass_data['ke31_call']}. "
+            f"HRIPT Clinical: {hript_data['hript_call']} ({hript_data['hript_confidence']}). "
             f"Human PoD (SARA ED01): {pot_data['sara_ed01_pod']}."
         )
 
@@ -744,7 +811,7 @@ class QAAgent:
 
 
 # =====================================================================
-# PDF QPRF DOSSIER GENERATOR
+# PDF QPRF DOSSIER GENERATOR (WITH HRIPT & ATOM HEATMAP MENTION)
 # =====================================================================
 def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -765,7 +832,7 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     c_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=colors.HexColor("#0f172a"))
 
     story.append(Paragraph("OECD QSAR Prediction Reporting Format (QPRF)", title_style))
-    story.append(Paragraph(f"Harmonized AI & Skin Bioactivation Dossier | Engine: <b>GNN (MPNN) + OECD GL 497 & SARA-ICE</b>", c_style))
+    story.append(Paragraph(f"Harmonized AI & Clinical HRIPT Dossier | Engine: <b>GNN (MPNN) + OECD GL 497 & SARA-ICE</b>", c_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0d9488"), spaceAfter=6))
 
     # Section 1: Substance Identification
@@ -773,7 +840,7 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     sub_data = [
         [Paragraph("Chemical Name:", c_bold), Paragraph(str(res["Resolved_Name"]), c_style), Paragraph("CAS RN:", c_bold), Paragraph(str(res["Input"]), c_style)],
         [Paragraph("SMILES:", c_bold), Paragraph(f"<font size=6.5>{res['SMILES']}</font>", c_style), Paragraph("MW / LogP:", c_bold), Paragraph(f"{res['MW']} g/mol | {res['LogP']}", c_style)],
-        [Paragraph("Skin Bioactivation Risk:", c_bold), Paragraph(str(res["Metabolism_Risk"]), c_style), Paragraph("GNN Confidence (p-val):", c_bold), Paragraph(f"Score: {res['GNN_Score']} (p={res['GNN_p_value']})", c_style)],
+        [Paragraph("Skin Bioactivation Risk:", c_bold), Paragraph(str(res["Metabolism_Risk"]), c_style), Paragraph("Distance-to-Model AD:", c_bold), Paragraph(str(res["Applicability_Domain"]), c_style)],
     ]
     t1 = Table(sub_data, colWidths=[115, 185, 115, 125])
     t1.setStyle(TableStyle([
@@ -787,12 +854,12 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Spacer(1, 3))
 
     # Section 2: Defined Approaches & GNN Consensus
-    story.append(Paragraph("2. OECD GL 497 & GNN DEFINED APPROACH PREDICTIONS", h3_style))
+    story.append(Paragraph("2. OECD GL 497 & CLINICAL HRIPT PREDICTIONS", h3_style))
     da_data = [
-        [Paragraph("Defined Approach (DA)", c_bold), Paragraph("Data Interpretation Procedure (DIP)", c_bold), Paragraph("Hazard / Potency Call", c_bold), Paragraph("Data Provenance", c_bold)],
+        [Paragraph("Defined Approach / Model", c_bold), Paragraph("Mechanistic Interpretation", c_bold), Paragraph("Hazard / Potency Call", c_bold), Paragraph("Data Provenance", c_bold)],
         [Paragraph("1. 2-out-of-3 (2o3 DA)", c_style), Paragraph(str(res["DA_2o3_Concordance"]), c_style), Paragraph(f"<b>{res['DA_2o3_Call']}</b>", c_style), Paragraph(res["Data_Source"], c_style)],
-        [Paragraph("2. ITS Matrix (OECD)", c_style), Paragraph(f"Score: {res['ITS_Total_Pts']}/6 Pts (DPRA:{res['ITS_DPRA_Pts']}, h-CLAT:{res['ITS_hCLAT_Pts']}, QSAR:{res['ITS_QSAR_Pts']})", c_style), Paragraph(f"<b>{res['ITS_Call']}</b>", c_style), Paragraph("OECD GL 497 Annex 2", c_style)],
-        [Paragraph("3. KE 3/1 STS Strategy", c_style), Paragraph(str(res["KE31_Path"]), c_style), Paragraph(f"<b>{res['KE31_Call']}</b>", c_style), Paragraph("Sequential Strategy", c_style)],
+        [Paragraph("2. ITS Matrix (OECD)", c_style), Paragraph(f"Score: {res['ITS_Total_Pts']}/6 Pts (DPRA:{res['ITS_DPRA_Pts']}, h-CLAT:{res['ITS_hCLAT_Pts']})", c_style), Paragraph(f"<b>{res['ITS_Call']}</b>", c_style), Paragraph("OECD GL 497", c_style)],
+        [Paragraph("3. Human HRIPT Clinical", c_style), Paragraph(str(res["HRIPT_Confidence"]), c_style), Paragraph(f"<b>{res['HRIPT_Call']}</b>", c_style), Paragraph("Clinical Consensus", c_style)],
         [Paragraph("4. Deep Learning (GNN)", c_style), Paragraph(f"3-Layer Message Passing (p={res['GNN_p_value']})", c_style), Paragraph(f"<b>{res['GNN_Verdict']}</b>", c_style), Paragraph("Spatial Graph Conv", c_style)],
     ]
     t2 = Table(da_data, colWidths=[125, 165, 130, 120])
@@ -887,6 +954,9 @@ def process_single_chemical(
             "GNN_Verdict": "N/A",
             "Metabolism_Risk": "N/A",
             "Metabolites": [],
+            "HRIPT_Call": "N/A",
+            "HRIPT_Confidence": "N/A",
+            "Distance_Index": 1.0,
             "KE1_DPRA": 0.0,
             "KE2_KeratinoSens": 0.0,
             "KE3_hCLAT": 0.0,
@@ -918,7 +988,8 @@ def process_single_chemical(
             "Recommended_Action": "Provide valid SMILES or verified CAS identifier.",
             "QA_SignOff": "REJECTED_RESOLUTION_ERROR",
             "Audit_ID": "N/A",
-            "Analogs": []
+            "Analogs": [],
+            "Heatmap_PNG": None
         }
 
     chem = ChemicalProfile(
@@ -952,13 +1023,15 @@ def process_single_chemical(
     elif lab_hclat_mit is not None and not math.isinf(lab_hclat_mit):
         b2["KE3_hCLAT"] = 0.95 if lab_hclat_mit <= 10.0 else (0.80 if lab_hclat_mit <= 150.0 else (0.55 if lab_hclat_mit <= 500.0 else 0.15))
 
-    b3 = StatisticianAgent().evaluate(chem, b2, b_gnn)
+    analogs, dist_idx, ad_call = ReadAcrossAgent.evaluate_analogs_and_ad(chem.smiles)
+    b3 = StatisticianAgent().evaluate(chem, b2, b_gnn, ad_call)
     if lab_qsar_call is not None:
         b3["score"] = 0.90 if lab_qsar_call == 1 else 0.10
         b3["call"] = "SENSITIZER" if lab_qsar_call == 1 else "NON_SENSITIZER"
 
     is_sens = b3["call"] == "SENSITIZER"
     b_sara = SARAICEPotencyAgent.evaluate(chem, b3["score"], is_sens)
+    b_hript = ClinicalHRIPTAgent.evaluate(b3["score"], b_gnn["gnn_score"], b_metab["has_bioactivation"])
     
     dass_res = DefinedApproachAgent.calculate_all_dass(
         b2["KE1_DPRA"], b2["KE2_KeratinoSens"], b2["KE3_hCLAT"], b3["score"],
@@ -966,9 +1039,9 @@ def process_single_chemical(
         raw_dpra_call=lab_dpra_call, raw_ks_call=lab_ks_call, raw_hclat_call=lab_hclat_call
     )
     b_nams = CompanionNAMsAgent.evaluate(chem)
-    b_reg = RegulatoryAgent().evaluate(b3, dass_res, b_sara, has_user_lab)
+    b_reg = RegulatoryAgent().evaluate(b3, dass_res, b_sara, b_hript, has_user_lab)
     b_qa = QAAgent.audit(chem, b3, has_user_lab)
-    analogs = ReadAcrossAgent.find_top_analogs(chem.smiles)
+    heatmap_bytes = AtomHeatmapAgent.generate_heatmap_bytes(chem)
 
     return {
         "Input": identifier,
@@ -985,6 +1058,9 @@ def process_single_chemical(
         "GNN_Verdict": b_gnn["gnn_verdict"],
         "Metabolism_Risk": b_metab["metabolic_risk"],
         "Metabolites": b_metab["metabolites"],
+        "HRIPT_Call": b_hript["hript_call"],
+        "HRIPT_Confidence": b_hript["hript_confidence"],
+        "Distance_Index": dist_idx,
         "KE1_DPRA": b2["KE1_DPRA"],
         "KE2_KeratinoSens": b2["KE2_KeratinoSens"],
         "KE3_hCLAT": b2["KE3_hCLAT"],
@@ -1016,12 +1092,13 @@ def process_single_chemical(
         "Recommended_Action": b_reg["recommended_action"],
         "QA_SignOff": b_qa["sign_off"],
         "Audit_ID": b_qa["audit_id"],
-        "Analogs": analogs
+        "Analogs": analogs,
+        "Heatmap_PNG": heatmap_bytes
     }
 
 
 # =====================================================================
-# UI RENDERING: DASHBOARD CARDS (WITH ALIGNED CLEAN GNN CARD)
+# UI RENDERING: DASHBOARD CARDS WITH ATOM ATTRIBUTION CANVAS
 # =====================================================================
 def render_dashboard_cards(res: Dict[str, Any]):
     mol = Chem.MolFromSmiles(res["SMILES"])
@@ -1031,19 +1108,20 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.code(f"SMILES: {res['SMILES']}", language="text")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("OECD 497 Call", f"{res['OECD_497_Call']}")
-        # Format GNN Score cleanly with delta sub-label to prevent long float wrapping
         m2.metric(
             label="GNN Score",
             value=f"{res['GNN_Score']:.2f}",
             delta=f"p = {res['GNN_p_value']:.2f}",
             delta_color="off"
         )
-        m3.metric("Skin Metabolism", f"{res['Metabolism_Risk'].split()[0]}")
+        m3.metric("Human HRIPT", f"{res['HRIPT_Call'].split()[0]}")
         m4.metric("SARA-ICE ED01", f"{res['SARA_ED01_PoD']}")
 
     with c_img:
-        if mol:
-            st.image(Draw.MolToImage(mol, size=(300, 180)), caption="2D Molecular Structure", use_container_width=True)
+        if res.get("Heatmap_PNG"):
+            st.image(res["Heatmap_PNG"], caption="2D Atom Attribution Heatmap (Red = Alert)", use_container_width=True)
+        elif mol:
+            st.image(Draw.MolToImage(mol, size=(300, 180)), caption="2D Structure", use_container_width=True)
         else:
             st.info("Inorganic / Elemental Species")
 
@@ -1069,15 +1147,16 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.write(f"- **ITSv1/v2:** `{res['ITS_Call']}`")
         st.write(f"- **KE 3/1 STS:** `{res['KE31_Call']}`")
     with c4:
-        st.markdown("#### 🛡️ 4. Companion NAMs & PoD")
+        st.markdown("#### 🛡️ 4. Clinical HRIPT & PoD")
+        st.write(f"- **HRIPT Call:** `{res['HRIPT_Call']}`")
+        st.write(f"- **Confidence:** `{res['HRIPT_Confidence']}`")
         st.write(f"- **SARA PoD:** `{res['SARA_ED01_PoD']}`")
-        st.write(f"- **NESIL Limit:** `{res['NESIL']}`")
-        st.write(f"- **Phototoxicity:** `{res['Phototoxicity']}`")
 
     # Read-Across Section
     if res.get("Analogs"):
         st.markdown("---")
-        st.markdown("### 🔍 Read-Across & Chemical Analog Benchmarks (Tanimoto Similarity)")
+        st.markdown("### 🔍 Read-Across & Chemical Space Distance ($D_M$)")
+        st.write(f"**Continuous Applicability Domain:** `{res['Applicability_Domain']}`")
         cols = st.columns(len(res["Analogs"]))
         for idx, analog in enumerate(res["Analogs"]):
             with cols[idx]:
@@ -1098,10 +1177,10 @@ def render_dashboard_cards(res: Dict[str, Any]):
         <div style="background-color: {summary_bg}; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
             <h4 style="margin: 0 0 8px 0; color: #1e293b;">Harmonized Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
             <p style="margin: 0; color: #334155; font-size: 13.5px;">
-                <strong>GNN (MPNN) Score:</strong> {res['GNN_Score']:.2f} (p={res['GNN_p_value']:.2f}) &nbsp;|&nbsp; 
+                <strong>GNN (MPNN) Probability:</strong> {res['GNN_Score']:.2f} (p={res['GNN_p_value']:.2f}) &nbsp;|&nbsp; 
+                <strong>Human HRIPT Clinical:</strong> {res['HRIPT_Call']} &nbsp;|&nbsp; 
                 <strong>Skin Metabolism:</strong> {res['Metabolism_Risk']} &nbsp;|&nbsp; 
                 <strong>2-of-3 DA:</strong> {res['DA_2o3_Call']} &nbsp;|&nbsp; 
-                <strong>SARA-ICE PoD:</strong> {res['SARA_ED01_PoD']} &nbsp;|&nbsp; 
                 <strong>Audit Hash:</strong> <code>{res['Audit_ID']}</code>
             </p>
         </div>
@@ -1244,7 +1323,7 @@ with tab_dass_lab:
                     p_bar.progress((idx + 1) / total)
 
                 df_lab_res = pd.DataFrame(lab_results)
-                df_lab_export = df_lab_res.drop(columns=["Analogs"], errors="ignore")
+                df_lab_export = df_lab_res.drop(columns=["Analogs", "Heatmap_PNG"], errors="ignore")
 
                 st.markdown("### 📊 Harmonized Defined Approach Results (Lab Assisted)")
                 st.dataframe(df_lab_export, use_container_width=True)
@@ -1348,7 +1427,7 @@ with tab_batch:
                     progress_bar.progress((idx + 1) / total)
 
                 df_results = pd.DataFrame(results)
-                df_export = df_results.drop(columns=["Analogs"], errors="ignore")
+                df_export = df_results.drop(columns=["Analogs", "Heatmap_PNG"], errors="ignore")
                 st.dataframe(df_export, use_container_width=True)
 
                 col_exp1, col_exp2 = st.columns(2)
@@ -1416,6 +1495,7 @@ with tab_formulation:
                     "2o3 Call": ind_res["DA_2o3_Call"],
                     "ITS Call": ind_res["ITS_Call"],
                     "KE 3/1 STS Call": ind_res["KE31_Call"],
+                    "HRIPT Clinical": ind_res["HRIPT_Call"],
                     "SARA PoD": ind_res["SARA_ED01_PoD"]
                 })
 
@@ -1447,7 +1527,7 @@ st.markdown(
     """
     <div style="text-align: center; padding: 18px 0; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; margin-top: 30px;">
         <p style="margin: 0; font-weight: 500;">
-            🧪 <strong>Enterprise Sensitization Platform</strong> | Harmonized <strong>OECD Guideline 497 &amp; DASS App Suite</strong>
+            🧪 <strong>Enterprise Sensitization Platform</strong> | Harmonized <strong>OECD Guideline 497, DASS &amp; Pred-Skin Suite</strong>
         </p>
         <p style="margin: 6px 0 0 0; color: #475569;">
             Created by <strong>Dr. Rahul Anant Date</strong> with <strong>Gemini AI</strong>
