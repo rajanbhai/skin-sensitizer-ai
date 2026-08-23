@@ -1,6 +1,6 @@
 # ==============================================================================
 # ENTERPRISE AUTONOMOUS MULTI-AGENT SKIN SENSITIZATION & NAMS AI PLATFORM
-# Version: 4.2.0-Agentic (Pred-Skin Style & OECD GL 497 QPRF Dual PDF Suite)
+# Version: 4.3.0-Agentic (Executive In Silico AOP & OECD GL 497 QPRF Dual PDF Suite)
 # Authors: Dr. Rahul Anant Date with Gemini AI
 # ==============================================================================
 
@@ -51,7 +51,7 @@ st.set_page_config(
 
 st.title("🧪 Autonomous Multi-Agent Sensitization & NAMs Platform")
 st.caption(
-    "Hybrid Agentic Architecture: **Pred-Skin Style Visual PDF Dossier**, **OECD GL 497 QPRF**, **2D Atom Attribution Heatmaps**, **ChemBERTa Transformer Encodings**, **3D Keap1-Cys151 Covalent Docking (\\Delta G)**, and **Gemini LLM Autonomous Agents**."
+    "Hybrid Agentic Architecture: **Executive In Silico AOP Safety Dossiers**, **OECD GL 497 Formal QPRF Reports**, **2D Atom Attribution Heatmaps**, **ChemBERTa Transformer Encodings**, **3D Keap1-Cys151 Covalent Docking (\\Delta G)**, and **Gemini LLM Autonomous Agents**."
 )
 
 # Sidebar
@@ -81,7 +81,7 @@ with st.sidebar:
         - **7. Toxicologist Bot:** AOP Weight of Evidence
         - **8. Clinical Bot:** HRIPT / HMT Verification
         - **9. SARA-ICE Bot:** Human $\\text{ED}_{01}$ PoD
-        - **10. Regulatory Bot:** OECD GL 497 & Pred-Skin
+        - **10. Regulatory Bot:** OECD GL 497 & In Silico AOP
         - **11. QA Auditor:** SHA-256 Audit Seal
         """
     )
@@ -974,9 +974,9 @@ class AutonomousGeminiCouncil:
 
 
 # =====================================================================
-# PDF GENERATOR 1: PREDSKIN-STYLE REPORTLAB DOSSIER
+# PDF GENERATOR 1: EXECUTIVE IN SILICO AOP SAFETY DOSSIER
 # =====================================================================
-def generate_predskin_pdf(res: Dict[str, Any]) -> bytes:
+def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -989,29 +989,24 @@ def generate_predskin_pdf(res: Dict[str, Any]) -> bytes:
     styles = getSampleStyleSheet()
     story = []
 
-    # Custom Color Palette
     c_navy = colors.HexColor("#0a1931")
-    c_teal = colors.HexColor("#00a8cc")
     c_light_bg = colors.HexColor("#f0f4f8")
     c_border = colors.HexColor("#d9e2ec")
     c_red = colors.HexColor("#e63946")
     c_green = colors.HexColor("#2a9d8f")
 
-    # Typography Styles
     title_style = ParagraphStyle('PredTitle', parent=styles['Heading1'], fontSize=16, leading=20, textColor=colors.white, fontName='Helvetica-Bold')
-    sub_title_style = ParagraphStyle('PredSubTitle', parent=styles['Normal'], fontSize=9, leading=11, textColor=colors.HexColor("#e0f2fe"))
     sec_head = ParagraphStyle('SecHead', parent=styles['Heading3'], fontSize=10, leading=12, textColor=c_navy, fontName='Helvetica-Bold', spaceBefore=6, spaceAfter=4)
     cell_bold = ParagraphStyle('CBold', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=c_navy)
     cell_norm = ParagraphStyle('CNorm', parent=styles['Normal'], fontSize=7.5, leading=9.5, textColor=colors.HexColor("#334e68"))
     
-    # 1. LABMOL / PRED-SKIN STYLE HEADER BANNER
+    # 1. EXECUTIVE HEADER BANNER
     is_sens = res["OECD_497_Call"] == "SENSITIZER"
-    pred_color = c_red if is_sens else c_green
     pred_tag = "Sensitizer" if is_sens else "NC (Non-sensitizer)"
 
     header_data = [
         [
-            Paragraph("<b>LABMOL / PRED-SKIN INSIGHT</b><br/><font size=8>AI-Driven Adverse Outcome Pathway & In Silico NAMs Report</font>", title_style),
+            Paragraph("<b>EXECUTIVE IN SILICO AOP SAFETY DOSSIER</b><br/><font size=8>AI-Driven Adverse Outcome Pathway &amp; Visual NAMs Assessment Report</font>", title_style),
             Paragraph(f"<font size=8>PREDICTION:</font><br/><b><font size=12>{pred_tag}</font></b><br/><font size=7>Confidence: {int(res['Confidence']*100)}% | GHS: {res['GHS_Category'].split()[-1]}</font>", ParagraphStyle('HeadPred', parent=styles['Normal'], textColor=colors.white, alignment=2))
         ]
     ]
@@ -1030,7 +1025,6 @@ def generate_predskin_pdf(res: Dict[str, Any]) -> bytes:
     # 2. ANALYZED MOLECULE & APPLICABILITY DOMAIN
     story.append(Paragraph("ANALYZED MOLECULE & APPLICABILITY DOMAIN", sec_head))
     
-    # Check if heatmap image bytes exist
     img_flowable = Paragraph("Structure Image N/A", cell_norm)
     if res.get("Heatmap_PNG"):
         img_buf = io.BytesIO(res["Heatmap_PNG"])
@@ -1058,7 +1052,7 @@ def generate_predskin_pdf(res: Dict[str, Any]) -> bytes:
     story.append(t_mol)
     story.append(Spacer(1, 6))
 
-    # 3. AOP KEY EVENTS ANALYSIS (PRED-SKIN 5-CARD HORIZONTAL FLOW)
+    # 3. AOP KEY EVENTS ANALYSIS (5-CARD HORIZONTAL FLOW)
     story.append(Paragraph("AOP KEY EVENTS ANALYSIS (IN SILICO & NAMs MATRIX)", sec_head))
     
     ke1_call = "SENSITIZER" if res["KE1_DPRA"] >= 0.5 else "NON-SENSITIZER"
@@ -1145,7 +1139,7 @@ def generate_predskin_pdf(res: Dict[str, Any]) -> bytes:
     # 6. SIGNATURE AUDIT FOOTER
     story.append(Paragraph("REGULATORY AUDIT TRAIL & CITATIONS", sec_head))
     story.append(Paragraph(f"<b>Digital SHA-256 Audit Seal:</b> <font face='Courier' size=6.5>{res['Audit_ID']}</font> | <b>Determination:</b> {res['QA_SignOff']}", cell_norm))
-    story.append(Paragraph("<b>Benchmark References:</b> 1. OECD GL 497 (2021); 2. Borba et al. (Pred-Skin 3.0) <i>Chem. Res. Toxicol.</i> 2021; 3. SARA-ICE Human PoD (NIEHS/NICEATM 2023).", cell_norm))
+    story.append(Paragraph("<b>Benchmark References:</b> 1. OECD Guideline 497 (2021); 2. In Silico AOP Frameworks; 3. SARA-ICE Human PoD (NIEHS/NICEATM 2023).", cell_norm))
 
     doc.build(story)
     return buffer.getvalue()
@@ -1536,11 +1530,11 @@ def render_dashboard_cards(res: Dict[str, Any]):
     # DUAL PDF EXPORT BUTTONS
     col_pdf1, col_pdf2 = st.columns(2)
     with col_pdf1:
-        predskin_pdf_bytes = generate_predskin_pdf(res)
+        exec_pdf_bytes = generate_executive_aop_pdf(res)
         st.download_button(
-            label=f"📄 Download LabMol Pred-Skin Style Dossier (PDF)",
-            data=predskin_pdf_bytes,
-            file_name=f"PredSkin_Report_{res['Input']}.pdf",
+            label=f"📄 Download Executive In Silico AOP Dossier (PDF)",
+            data=exec_pdf_bytes,
+            file_name=f"Executive_AOP_Dossier_{res['Input']}.pdf",
             mime="application/pdf",
             type="primary",
             use_container_width=True
@@ -1929,7 +1923,7 @@ st.markdown(
     """
     <div style="text-align: center; padding: 18px 0; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; margin-top: 30px;">
         <p style="margin: 0; font-weight: 500;">
-            🧪 <strong>Autonomous Multi-Agent Sensitization Platform</strong> | Powered by <strong>Gemini LLM &amp; OECD GL 497</strong>
+            🧪 <strong>Enterprise Sensitization Platform</strong> | Powered by <strong>Gemini LLM &amp; OECD GL 497</strong>
         </p>
         <p style="margin: 6px 0 0 0; color: #475569;">
             Created by <strong>Dr. Rahul Anant Date</strong> with <strong>Gemini AI</strong>
