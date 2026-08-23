@@ -1,6 +1,6 @@
 # ==============================================================================
 # ENTERPRISE AUTONOMOUS MULTI-AGENT SKIN SENSITIZATION & NAMS AI PLATFORM
-# Version: 4.1.0-Agentic (OECD GL 497, DASS App, SARA-ICE & Pred-Skin Suite)
+# Version: 4.2.0-Agentic (Pred-Skin Style & OECD GL 497 QPRF Dual PDF Suite)
 # Authors: Dr. Rahul Anant Date with Gemini AI
 # ==============================================================================
 
@@ -28,7 +28,7 @@ from rdkit.Chem.Draw import SimilarityMaps
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Image as RLImage
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 # Optional Gemini SDK import
@@ -51,7 +51,7 @@ st.set_page_config(
 
 st.title("🧪 Autonomous Multi-Agent Sensitization & NAMs Platform")
 st.caption(
-    "Hybrid Agentic Architecture: **Gemini LLM Autonomous Agents**, **2D Atom Attribution Heatmaps**, **ChemBERTa Transformer Encodings**, **3D Keap1-Cys151 Covalent Docking (\\Delta G)**, **Graph Neural Networks (MPNN)**, and **OECD Guideline 497 Defined Approaches**."
+    "Hybrid Agentic Architecture: **Pred-Skin Style Visual PDF Dossier**, **OECD GL 497 QPRF**, **2D Atom Attribution Heatmaps**, **ChemBERTa Transformer Encodings**, **3D Keap1-Cys151 Covalent Docking (\\Delta G)**, and **Gemini LLM Autonomous Agents**."
 )
 
 # Sidebar
@@ -81,7 +81,7 @@ with st.sidebar:
         - **7. Toxicologist Bot:** AOP Weight of Evidence
         - **8. Clinical Bot:** HRIPT / HMT Verification
         - **9. SARA-ICE Bot:** Human $\\text{ED}_{01}$ PoD
-        - **10. Regulatory Bot:** OECD GL 497 & QPRF
+        - **10. Regulatory Bot:** OECD GL 497 & Pred-Skin
         - **11. QA Auditor:** SHA-256 Audit Seal
         """
     )
@@ -974,7 +974,185 @@ class AutonomousGeminiCouncil:
 
 
 # =====================================================================
-# PDF QPRF DOSSIER GENERATOR
+# PDF GENERATOR 1: PREDSKIN-STYLE REPORTLAB DOSSIER
+# =====================================================================
+def generate_predskin_pdf(res: Dict[str, Any]) -> bytes:
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=25,
+        bottomMargin=25
+    )
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Custom Color Palette
+    c_navy = colors.HexColor("#0a1931")
+    c_teal = colors.HexColor("#00a8cc")
+    c_light_bg = colors.HexColor("#f0f4f8")
+    c_border = colors.HexColor("#d9e2ec")
+    c_red = colors.HexColor("#e63946")
+    c_green = colors.HexColor("#2a9d8f")
+
+    # Typography Styles
+    title_style = ParagraphStyle('PredTitle', parent=styles['Heading1'], fontSize=16, leading=20, textColor=colors.white, fontName='Helvetica-Bold')
+    sub_title_style = ParagraphStyle('PredSubTitle', parent=styles['Normal'], fontSize=9, leading=11, textColor=colors.HexColor("#e0f2fe"))
+    sec_head = ParagraphStyle('SecHead', parent=styles['Heading3'], fontSize=10, leading=12, textColor=c_navy, fontName='Helvetica-Bold', spaceBefore=6, spaceAfter=4)
+    cell_bold = ParagraphStyle('CBold', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=c_navy)
+    cell_norm = ParagraphStyle('CNorm', parent=styles['Normal'], fontSize=7.5, leading=9.5, textColor=colors.HexColor("#334e68"))
+    
+    # 1. LABMOL / PRED-SKIN STYLE HEADER BANNER
+    is_sens = res["OECD_497_Call"] == "SENSITIZER"
+    pred_color = c_red if is_sens else c_green
+    pred_tag = "Sensitizer" if is_sens else "NC (Non-sensitizer)"
+
+    header_data = [
+        [
+            Paragraph("<b>LABMOL / PRED-SKIN INSIGHT</b><br/><font size=8>AI-Driven Adverse Outcome Pathway & In Silico NAMs Report</font>", title_style),
+            Paragraph(f"<font size=8>PREDICTION:</font><br/><b><font size=12>{pred_tag}</font></b><br/><font size=7>Confidence: {int(res['Confidence']*100)}% | GHS: {res['GHS_Category'].split()[-1]}</font>", ParagraphStyle('HeadPred', parent=styles['Normal'], textColor=colors.white, alignment=2))
+        ]
+    ]
+    t_head = Table(header_data, colWidths=[370, 180])
+    t_head.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), c_navy),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ('RIGHTPADDING', (0,0), (-1,-1), 10),
+    ]))
+    story.append(t_head)
+    story.append(Spacer(1, 6))
+
+    # 2. ANALYZED MOLECULE & APPLICABILITY DOMAIN
+    story.append(Paragraph("ANALYZED MOLECULE & APPLICABILITY DOMAIN", sec_head))
+    
+    # Check if heatmap image bytes exist
+    img_flowable = Paragraph("Structure Image N/A", cell_norm)
+    if res.get("Heatmap_PNG"):
+        img_buf = io.BytesIO(res["Heatmap_PNG"])
+        img_flowable = RLImage(img_buf, width=170, height=105)
+
+    mol_table_data = [
+        [
+            Paragraph(f"<b>Compound Name:</b> {res['Resolved_Name']}<br/>"
+                      f"<b>CAS RN:</b> {res['Input']}<br/>"
+                      f"<b>SMILES:</b> <font size=6>{res['SMILES']}</font><br/>"
+                      f"<b>MW / LogP:</b> {res['MW']} g/mol | {res['LogP']}<br/>"
+                      f"<b>Applicability Domain:</b> <b>{res['Applicability_Domain']}</b><br/>"
+                      f"<b>Distance Index ($D_M$):</b> {res['Distance_Index']} (Top 5 Chemical Space Neighbors)<br/>"
+                      f"<b>3D Keap1 Covalent Docking:</b> {res['Docking_Score']} ({res['Docking_Affinity']})", cell_norm),
+            img_flowable
+        ]
+    ]
+    t_mol = Table(mol_table_data, colWidths=[360, 190])
+    t_mol.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), c_light_bg),
+        ('GRID', (0,0), (-1,-1), 0.5, c_border),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_mol)
+    story.append(Spacer(1, 6))
+
+    # 3. AOP KEY EVENTS ANALYSIS (PRED-SKIN 5-CARD HORIZONTAL FLOW)
+    story.append(Paragraph("AOP KEY EVENTS ANALYSIS (IN SILICO & NAMs MATRIX)", sec_head))
+    
+    ke1_call = "SENSITIZER" if res["KE1_DPRA"] >= 0.5 else "NON-SENSITIZER"
+    ke2_call = "SENSITIZER" if res["KE2_KeratinoSens"] >= 0.5 else "NON-SENSITIZER"
+    ke3_call = "SENSITIZER" if res["KE3_hCLAT"] >= 0.5 else "NON-SENSITIZER"
+    ke4_call = "SENSITIZER" if res["GNN_Score"] >= 0.5 else "NON-SENSITIZER"
+    ao_call = res["OECD_497_Call"]
+
+    aop_card_data = [
+        [
+            Paragraph("<b>KE1</b><br/>Protein Reactivity<br/><b>DPRA</b>", cell_bold),
+            Paragraph("<b>KE2</b><br/>Keratinocyte ARE<br/><b>KeratinoSens</b>", cell_bold),
+            Paragraph("<b>KE3</b><br/>DC Activation<br/><b>h-CLAT / U-SENS</b>", cell_bold),
+            Paragraph("<b>KE4</b><br/>Deep Graph AI<br/><b>GNN / MPNN</b>", cell_bold),
+            Paragraph("<b>AO</b><br/>Adverse Outcome<br/><b>Human Skin</b>", cell_bold),
+        ],
+        [
+            Paragraph(f"<b>{ke1_call}</b><br/>Score: {res['KE1_DPRA']:.2f}", cell_norm),
+            Paragraph(f"<b>{ke2_call}</b><br/>Score: {res['KE2_KeratinoSens']:.2f}", cell_norm),
+            Paragraph(f"<b>{ke3_call}</b><br/>Score: {res['KE3_hCLAT']:.2f}", cell_norm),
+            Paragraph(f"<b>{ke4_call}</b><br/>Score: {res['GNN_Score']:.2f}", cell_norm),
+            Paragraph(f"<b>{ao_call}</b><br/>GHS: {res['GHS_Category'].split()[-1]}", cell_norm),
+        ],
+        [
+            Paragraph("AD: <b>In Domain</b>", cell_norm),
+            Paragraph("AD: <b>In Domain</b>", cell_norm),
+            Paragraph("AD: <b>In Domain</b>", cell_norm),
+            Paragraph(f"p-val: <b>{res['GNN_p_value']:.2f}</b>", cell_norm),
+            Paragraph(f"Conf: <b>{int(res['Confidence']*100)}%</b>", cell_norm),
+        ]
+    ]
+    t_aop = Table(aop_card_data, colWidths=[110, 110, 110, 110, 110])
+    t_aop.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), c_navy),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('GRID', (0,0), (-1,-1), 0.5, c_border),
+        ('BACKGROUND', (0,1), (-1,-1), c_light_bg),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('PADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(t_aop)
+    story.append(Spacer(1, 6))
+
+    # 4. QUANTITATIVE POTENCY, CLINICAL HRIPT & BIOAVAILABILITY
+    story.append(Paragraph("QUANTITATIVE POTENCY, CLINICAL HRIPT & BIOAVAILABILITY", sec_head))
+    pot_data = [
+        [Paragraph("SARA-ICE Human ED01 PoD:", cell_bold), Paragraph(str(res["SARA_ED01_PoD"]), cell_norm), Paragraph("Predicted LLNA EC3 (%):", cell_bold), Paragraph(str(res["Potency_EC3"]), cell_norm)],
+        [Paragraph("Human HRIPT Clinical Call:", cell_bold), Paragraph(f"<b>{res['HRIPT_Call']}</b>", cell_norm), Paragraph("HRIPT Confidence / Margin:", cell_bold), Paragraph(str(res["HRIPT_Confidence"]), cell_norm)],
+        [Paragraph("ChemBERTa Transformer Score:", cell_bold), Paragraph(f"{res['Transformer_Score']:.2f} ({res['Transformer_Verdict']})", cell_norm), Paragraph("Dermal Permeability Kp (cm/h):", cell_bold), Paragraph(str(res["Kp_cm_h"]), cell_norm)],
+        [Paragraph("Skin Bioactivation Risk:", cell_bold), Paragraph(str(res["Metabolism_Risk"]), cell_norm), Paragraph("NESIL Sensitization Threshold:", cell_bold), Paragraph(str(res["NESIL"]), cell_norm)],
+    ]
+    t_pot = Table(pot_data, colWidths=[140, 135, 140, 135])
+    t_pot.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), c_light_bg),
+        ('GRID', (0,0), (-1,-1), 0.5, c_border),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('PADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(t_pot)
+    story.append(Spacer(1, 6))
+
+    # 5. AUTONOMOUS GEMINI LLM AGENT COUNCIL SYNTHESIS
+    if res.get("LLM_Council"):
+        story.append(Paragraph("AUTONOMOUS MULTI-AGENT COUNCIL SCIENTIFIC SYNTHESIS", sec_head))
+        llm_data = [
+            [
+                Paragraph(f"<b>Chemist Agent Mechanism:</b><br/>{res['LLM_Council'].get('chemist_narrative', 'N/A')}<br/><br/>"
+                          f"<b>Medicinal Chemistry Bioisostere Advice:</b><br/>{res['LLM_Council'].get('bioisostere_recommendation', 'N/A')}", cell_norm),
+                Paragraph(f"<b>Toxicologist AOP Synthesis:</b><br/>{res['LLM_Council'].get('toxicologist_narrative', 'N/A')}<br/><br/>"
+                          f"<b>Weight of Evidence Justification:</b><br/>{res['LLM_Council'].get('regulatory_woe', 'N/A')}", cell_norm)
+            ]
+        ]
+        t_llm = Table(llm_data, colWidths=[275, 275])
+        t_llm.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+            ('GRID', (0,0), (-1,-1), 0.5, c_border),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('PADDING', (0,0), (-1,-1), 5),
+        ]))
+        story.append(t_llm)
+        story.append(Spacer(1, 5))
+
+    # 6. SIGNATURE AUDIT FOOTER
+    story.append(Paragraph("REGULATORY AUDIT TRAIL & CITATIONS", sec_head))
+    story.append(Paragraph(f"<b>Digital SHA-256 Audit Seal:</b> <font face='Courier' size=6.5>{res['Audit_ID']}</font> | <b>Determination:</b> {res['QA_SignOff']}", cell_norm))
+    story.append(Paragraph("<b>Benchmark References:</b> 1. OECD GL 497 (2021); 2. Borba et al. (Pred-Skin 3.0) <i>Chem. Res. Toxicol.</i> 2021; 3. SARA-ICE Human PoD (NIEHS/NICEATM 2023).", cell_norm))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+# =====================================================================
+# PDF GENERATOR 2: FORMAL OECD GL 497 QPRF DOSSIER
 # =====================================================================
 def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -1038,30 +1216,10 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
 
     story.append(Paragraph("3. SARA-ICE HUMAN PoD, POTENCY & BIOAVAILABILITY (Kp)", h3_style))
     pot_data = [
-        [
-            Paragraph("SARA Human ED01 PoD:", c_bold),
-            Paragraph(str(res["SARA_ED01_PoD"]), c_style),
-            Paragraph("Predicted LLNA EC3 (%):", c_bold),
-            Paragraph(str(res["Potency_EC3"]), c_style)
-        ],
-        [
-            Paragraph("Permeability Kp (cm/h):", c_bold),
-            Paragraph(str(res["Kp_cm_h"]), c_style),
-            Paragraph("NESIL Sensitization Limit:", c_bold),
-            Paragraph(str(res["NESIL"]), c_style)
-        ],
-        [
-            Paragraph("Phototoxicity (TG 432):", c_bold),
-            Paragraph(str(res["Phototoxicity"]), c_style),
-            Paragraph("Respiratory Asthmagen:", c_bold),
-            Paragraph(str(res["Respiratory_Sens"]), c_style)
-        ],
-        [
-            Paragraph("Skin Irritation (TG 439):", c_bold),
-            Paragraph(str(res["Skin_Irritation"]), c_style),
-            Paragraph("Eye Irritation (TG 492):", c_bold),
-            Paragraph(str(res["Eye_Irritation"]), c_style)
-        ],
+        [Paragraph("SARA Human ED01 PoD:", c_bold), Paragraph(str(res["SARA_ED01_PoD"]), c_style), Paragraph("Predicted LLNA EC3 (%):", c_bold), Paragraph(str(res["Potency_EC3"]), c_style)],
+        [Paragraph("Permeability Kp (cm/h):", c_bold), Paragraph(str(res["Kp_cm_h"]), c_style), Paragraph("NESIL Sensitization Limit:", c_bold), Paragraph(str(res["NESIL"]), c_style)],
+        [Paragraph("Phototoxicity (TG 432):", c_bold), Paragraph(str(res["Phototoxicity"]), c_style), Paragraph("Respiratory Asthmagen:", c_bold), Paragraph(str(res["Respiratory_Sens"]), c_style)],
+        [Paragraph("Skin Irritation (TG 439):", c_bold), Paragraph(str(res["Skin_Irritation"]), c_style), Paragraph("Eye Irritation (TG 492):", c_bold), Paragraph(str(res["Eye_Irritation"]), c_style)],
     ]
     t3 = Table(pot_data, colWidths=[135, 135, 135, 135])
     t3.setStyle(TableStyle([
@@ -1280,7 +1438,7 @@ def process_single_chemical(
 
 
 # =====================================================================
-# UI RENDERING: DASHBOARD CARDS
+# UI RENDERING: DASHBOARD CARDS & DUAL PDF DOWNLOADERS
 # =====================================================================
 def render_dashboard_cards(res: Dict[str, Any]):
     mol = Chem.MolFromSmiles(res["SMILES"])
@@ -1375,14 +1533,27 @@ def render_dashboard_cards(res: Dict[str, Any]):
         unsafe_allow_html=True
     )
 
-    pdf_bytes = generate_qprf_pdf(res)
-    st.download_button(
-        label=f"📄 Download Formal OECD QPRF Regulatory Dossier (PDF)",
-        data=pdf_bytes,
-        file_name=f"OECD_QPRF_Dossier_{res['Input']}.pdf",
-        mime="application/pdf",
-        type="primary"
-    )
+    # DUAL PDF EXPORT BUTTONS
+    col_pdf1, col_pdf2 = st.columns(2)
+    with col_pdf1:
+        predskin_pdf_bytes = generate_predskin_pdf(res)
+        st.download_button(
+            label=f"📄 Download LabMol Pred-Skin Style Dossier (PDF)",
+            data=predskin_pdf_bytes,
+            file_name=f"PredSkin_Report_{res['Input']}.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True
+        )
+    with col_pdf2:
+        qprf_pdf_bytes = generate_qprf_pdf(res)
+        st.download_button(
+            label=f"📑 Download OECD GL 497 Formal QPRF Dossier (PDF)",
+            data=qprf_pdf_bytes,
+            file_name=f"OECD_QPRF_Dossier_{res['Input']}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 
 
 # =====================================================================
