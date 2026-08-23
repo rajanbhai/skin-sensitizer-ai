@@ -31,7 +31,7 @@ st.set_page_config(
 
 st.title("🧪 Enterprise Sensitization AI (OECD GL 497 & DASS App)")
 st.caption(
-    "Standardized Defined Approaches: **2-out-of-3 (2o3 DA)**, **Integrated Testing Strategy (ITSv1/v2)**, **KE 3/1 Sequential Testing Strategy (KE 3/1 STS)**, **NICEATM SARA-ICE Human $\\text{ED}_{01}$ PoD**, Potency ($EC_3$/NESIL), Bioavailability ($K_p$), Tanimoto Read-Across, and QPRF PDF Dossiers."
+    "Automated Defined Approaches: **2-out-of-3 (2o3 DA)**, **Integrated Testing Strategy (ITSv1/v2)**, **KE 3/1 STS**, **NICEATM SARA-ICE Human $\\text{ED}_{01}$ PoD**, and **DASS In Vitro Lab Template Integration**."
 )
 
 # Sidebar
@@ -43,7 +43,7 @@ with st.sidebar:
         - **2. ITSv1 / ITSv2:** 0–6 pt matrix (Hazard + GHS Potency)
         - **3. KE 3/1 STS DA:** Sequential h-CLAT -> DPRA strategy
         - **4. SARA-ICE:** Human $\\text{ED}_{01}$ Point of Departure
-        - **5. Companion NAMs:** Photo / Respiratory / Irritation
+        - **5. DASS Lab Mode:** Ingests official NIEHS Excel/TXT templates
         """
     )
     st.markdown("---")
@@ -88,6 +88,11 @@ class UniversalChemicalResolver:
         "106-50-3": {"name": "p-Phenylenediamine (PPD)", "smiles": "NC1=CC=C(N)C=C1", "cid": 7814, "exp_ec3": 0.15, "exp_potency": "Strong"},
         "62-53-3": {"name": "Aniline", "smiles": "NC1=CC=CC=C1", "cid": 6115, "exp_ec3": 3.2, "exp_potency": "Moderate"},
         "101-80-4": {"name": "4,4'-Oxydianiline", "smiles": "NC1=CC=C(OC2=CC=C(N)C=C2)C=C1", "cid": 7575, "exp_ec3": 1.8, "exp_potency": "Moderate"},
+        "150-13-0": {"name": "4-Aminobenzoic acid (PABA)", "smiles": "NC1=CC=C(C=C1)C(=O)O", "cid": 978, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
+        "122-57-6": {"name": "Benzylideneacetone", "smiles": "CC(=O)C=CC1=CC=CC=C1", "cid": 5318536, "exp_ec3": 1.4, "exp_potency": "Moderate"},
+        "35691-65-7": {"name": "Methyldibromo glutaronitrile (MDBGN)", "smiles": "Brc1c(Br)(C#N)CCC#N", "cid": 37213, "exp_ec3": 0.3, "exp_potency": "Strong"},
+        "71-36-3": {"name": "1-Butanol", "smiles": "CCCCO", "cid": 263, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
+        "104-54-1": {"name": "Cinnamyl alcohol", "smiles": "OCC=CC1=CC=CC=C1", "cid": 5315892, "exp_ec3": 8.5, "exp_potency": "Moderate/Weak"},
 
         # Metals & Salts
         "7440-02-0": {"name": "Nickel", "smiles": "[Ni]", "cid": 935, "exp_ec3": 0.5, "exp_potency": "Strong"},
@@ -142,20 +147,12 @@ class UniversalChemicalResolver:
         "101-68-8": {"name": "4,4'-MDI", "smiles": "C1=CC(=CC=C1CC2=CC=C(C=C2)N=C=O)N=C=O", "cid": 7570, "exp_ec3": 0.25, "exp_potency": "Strong"},
         "586-62-9": {"name": "Terpinolene", "smiles": "CC1=CCC(=C(C)C)CC1", "cid": 11463, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
 
-        # Natural Sweeteners & Glycosides
-        "38517-21-0": {"name": "Rebaudioside B", "smiles": "CC12CCCC(C1CCC34C2CCC(C3)(C(=C)C4)OC5C(C(C(C(O5)CO)O)O)OC6C(C(C(C(O6)CO)O)O)O)(C)C(=O)O", "cid": 3083656, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-        "58543-16-1": {"name": "Rebaudioside A", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O)(C)C(=O)O[C@H]8[C@@H]([C@H]([C@@H]([C@H](O8)CO)O)O)O", "cid": 6918840, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-        "57817-89-7": {"name": "Stevioside", "smiles": "C[C@@]12CCC[C@@]([C@H]1CC[C@]34[C@H]2CC[C@](C3)(C(=C)C4)O[C@H]5[C@@H]([C@H]([C@@H]([C@H](O5)CO)O)O[C@H]6[C@@H]([C@H]([C@@H]([C@H](O6)CO)O)O)O)O)(C)C(=O)O[C@H]7[C@@H]([C@H]([C@@H]([C@H](O7)CO)O)O)O", "cid": 442089, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-        "471-80-7": {"name": "Steviol", "smiles": "CC12CCCC(C1CCC34C2CCC(C3)(C(=C)C4)O)(C)C(=O)O", "cid": 439653, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-
-        # Cosmetic Excipients & Emollients
+        # Excipients
         "56-81-5": {"name": "Glycerol", "smiles": "OCC(O)CO", "cid": 753, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "57-55-6": {"name": "Propylene glycol", "smiles": "CC(O)CO", "cid": 1030, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "7732-18-5": {"name": "Water", "smiles": "O", "cid": 962, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "50-70-4": {"name": "D-Sorbitol", "smiles": "OCC(O)C(O)C(O)C(O)CO", "cid": 5776, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "69-65-8": {"name": "D-Mannitol", "smiles": "OCC(O)C(O)C(O)C(O)CO", "cid": 6251, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-        "59-02-9": {"name": "alpha-Tocopherol (Vitamin E)", "smiles": "CC1=C(C(=C(C2=C1OC(CC2)(C)CCCC(C)CCCC(C)CCCC(C)C)C)O)C", "cid": 14985, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-        "58-95-7": {"name": "alpha-Tocopheryl acetate", "smiles": "CC1=C(C(=C(C2=C1OC(CC2)(C)CCCC(C)CCCC(C)CCCC(C)C)C)OC(=O)C)C", "cid": 86472, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "124-07-2": {"name": "Octanoic acid (Caprylic acid)", "smiles": "CCCCCCCC(=O)O", "cid": 379, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "143-07-7": {"name": "Lauric acid", "smiles": "CCCCCCCCCCCC(=O)O", "cid": 3893, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "57-11-4": {"name": "Stearic acid", "smiles": "CCCCCCCCCCCCCCCCCC(=O)O", "cid": 5281, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
@@ -163,8 +160,6 @@ class UniversalChemicalResolver:
         "36653-82-4": {"name": "Cetyl alcohol", "smiles": "CCCCCCCCCCCCCCCCO", "cid": 2682, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "13463-67-7": {"name": "Titanium dioxide", "smiles": "O=[Ti]=O", "cid": 26042, "exp_ec3": None, "exp_potency": "Non-Sensitizer (Insoluble)"},
         "1314-13-2": {"name": "Zinc oxide", "smiles": "O=[Zn]", "cid": 14806, "exp_ec3": None, "exp_potency": "Non-Sensitizer (Insoluble)"},
-        "9004-34-6": {"name": "Cellulose (Microcrystalline)", "smiles": "C(C1C(C(C(C(O1)OC2C(OC(C(C2O)O)OC3C(OC(C(C3O)O)O)CO)CO)O)O)O)O", "cid": 14055602, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
-        "68441-17-8": {"name": "Oxidized polyethylene wax", "smiles": "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC", "cid": 16213076, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
     }
 
     HEADERS = {
@@ -327,7 +322,7 @@ class ChemistAgent:
 
 
 # =====================================================================
-# AGENT 2: TOXICOLOGIST (AOP KEY EVENTS 1-3 & BORDERLINE FILTER)
+# AGENT 2: TOXICOLOGIST (AOP KEY EVENTS 1-3)
 # =====================================================================
 class ToxicologistAgent:
     def evaluate(self, chem: ChemicalProfile, chem_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -338,19 +333,15 @@ class ToxicologistAgent:
         if is_extreme:
             ke1, ke2, ke3 = 0.94, 0.95, 0.92
             pathway = "High-Reactivity Electrophilic Haptenation / Direct Adduct Formation"
-            borderline_note = "Clear Positive (High Confidence)"
         elif is_metal:
             ke1, ke2, ke3 = 0.90, 0.85, 0.92
             pathway = "TLR4 Receptor Activation & Nrf2 Pathway"
-            borderline_note = "Clear Positive (Metal Axis)"
         elif has_alerts:
             ke1, ke2, ke3 = 0.88, 0.82, 0.78
             pathway = "Keap1-Nrf2 ARE Activated"
-            borderline_note = "Clear Positive (OECD Concordant)"
         else:
             ke1, ke2, ke3 = 0.15, 0.18, 0.16
             pathway = "Basal / Uninduced"
-            borderline_note = "Clear Negative (OECD Concordant)"
 
         return {
             "KE1_DPRA": ke1,
@@ -359,7 +350,6 @@ class ToxicologistAgent:
             "pathway": pathway,
             "is_metal": is_metal,
             "is_extreme": is_extreme,
-            "borderline_note": borderline_note
         }
 
 
@@ -381,7 +371,6 @@ class SARAICEPotencyAgent:
                 "dst_category": "Exempt"
             }
 
-        # Potts & Guy Model
         log_kp = -2.7 + (0.71 * chem.log_p) - (0.0061 * chem.mw)
         kp_cm_h = (10 ** log_kp) * 3600
         flux_est = max(0.001, round(kp_cm_h * 100, 3))
@@ -398,7 +387,6 @@ class SARAICEPotencyAgent:
                 "dst_category": "Exempt / Non-reactive"
             }
 
-        # SARA-ICE Human ED01 Bayesian Regression: log10(ED01) = 3.85 - 2.1*Score - 0.15*LogP
         log_ed01 = max(0.1, 3.85 - (2.1 * stat_score) - (0.15 * chem.log_p))
         sara_ed01 = round(10 ** log_ed01, 1)
 
@@ -434,33 +422,49 @@ class SARAICEPotencyAgent:
 # AGENT 4: DEFINED APPROACH ENGINES (2o3, ITSv1/v2, KE 3/1 STS)
 # =====================================================================
 class DefinedApproachAgent:
-    """Implements all 3 OECD GL 497 & US EPA / NICEATM DASS Defined Approaches:
-    1. 2-out-of-3 Defined Approach (2o3 DA)
-    2. Integrated Testing Strategy (ITSv1 & ITSv2 Points Matrix)
-    3. Key Event 3/1 Sequential Testing Strategy (KE 3/1 STS DA)
-    """
     @staticmethod
-    def calculate_all_dass(ke1_score: float, ke2_score: float, ke3_score: float, qsar_score: float,
-                           raw_dpra_depletion: Optional[float] = None, raw_hclat_mit: Optional[float] = None) -> Dict[str, Any]:
-        
-        # Binary calls (concordance)
-        dpra_pos = (raw_dpra_depletion >= 6.38) if raw_dpra_depletion is not None else (ke1_score >= 0.50)
-        ks_pos = ke2_score >= 0.50
-        hclat_pos = (raw_hclat_mit <= 5000.0) if raw_hclat_mit is not None else (ke3_score >= 0.50)
+    def calculate_all_dass(
+        ke1_score: float, ke2_score: float, ke3_score: float, qsar_score: float,
+        raw_dpra_depletion: Optional[float] = None, raw_hclat_mit: Optional[float] = None,
+        raw_dpra_call: Optional[int] = None, raw_ks_call: Optional[int] = None, raw_hclat_call: Optional[int] = None
+    ) -> Dict[str, Any]:
         
         # 1. 2-out-of-3 (2o3 DA)
+        if raw_dpra_call is not None:
+            dpra_pos = (raw_dpra_call == 1)
+        elif raw_dpra_depletion is not None:
+            dpra_pos = (raw_dpra_depletion >= 6.38)
+        else:
+            dpra_pos = (ke1_score >= 0.50)
+
+        if raw_ks_call is not None:
+            ks_pos = (raw_ks_call == 1)
+        else:
+            ks_pos = (ke2_score >= 0.50)
+
+        if raw_hclat_call is not None:
+            hclat_pos = (raw_hclat_call == 1)
+        elif raw_hclat_mit is not None:
+            hclat_pos = (raw_hclat_mit <= 5000.0)
+        else:
+            hclat_pos = (ke3_score >= 0.50)
+
         pos_count = sum([dpra_pos, ks_pos, hclat_pos])
         da_2o3_call = "SENSITIZER" if pos_count >= 2 else "NON_SENSITIZER"
         da_2o3_concordance = f"{pos_count}/3 Concordant Positive"
 
         # 2. Integrated Testing Strategy (ITSv1 Matrix 0-6 pts)
-        if raw_dpra_depletion is not None:
+        if raw_dpra_depletion is not None and not math.isinf(raw_dpra_depletion):
             dpra_pts = 2 if raw_dpra_depletion >= 22.62 else (1 if raw_dpra_depletion >= 6.38 else 0)
+        elif raw_dpra_call is not None:
+            dpra_pts = 2 if raw_dpra_call == 1 else 0
         else:
             dpra_pts = 2 if ke1_score >= 0.88 else (1 if ke1_score >= 0.70 else 0)
 
-        if raw_hclat_mit is not None:
+        if raw_hclat_mit is not None and not math.isinf(raw_hclat_mit):
             hclat_pts = 3 if raw_hclat_mit <= 10.0 else (2 if raw_hclat_mit <= 150.0 else (1 if raw_hclat_mit <= 500.0 else 0))
+        elif raw_hclat_call is not None:
+            hclat_pts = 2 if raw_hclat_call == 1 else 0
         else:
             hclat_pts = 3 if ke3_score >= 0.90 else (2 if ke3_score >= 0.75 else (1 if ke3_score >= 0.50 else 0))
 
@@ -475,10 +479,8 @@ class DefinedApproachAgent:
             its_call = "GHS Not Classified (Non-Sensitizer)"
 
         # 3. Key Event 3/1 Sequential Testing Strategy (KE 3/1 STS DA)
-        # First evaluate h-CLAT (KE3). If positive -> Cat 1A (MIT<=10) or Cat 1B (MIT>10).
-        # If h-CLAT negative -> evaluate DPRA (KE1). If DPRA pos -> Cat 1B; if neg -> Not Classified.
         if hclat_pos:
-            if (raw_hclat_mit is not None and raw_hclat_mit <= 10.0) or (raw_hclat_mit is None and ke3_score >= 0.90):
+            if (raw_hclat_mit is not None and not math.isinf(raw_hclat_mit) and raw_hclat_mit <= 10.0) or (raw_hclat_mit is None and ke3_score >= 0.90):
                 ke31_call = "GHS Category 1A (Strong)"
                 ke31_path = "h-CLAT Positive (MIT ≤ 10 µg/mL) -> Direct 1A Resolution"
             else:
@@ -593,12 +595,13 @@ class StatisticianAgent:
 
 
 class RegulatoryAgent:
-    def evaluate(self, stat_data: Dict[str, Any], dass_data: Dict[str, Any], pot_data: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(self, stat_data: Dict[str, Any], dass_data: Dict[str, Any], pot_data: Dict[str, Any], has_user_lab: bool) -> Dict[str, Any]:
         is_sens = stat_data["call"] == "SENSITIZER"
         ghs = f"GHS {pot_data['potency_class']}" if is_sens else "GHS Not Classified (Non-Sensitizer)"
         
+        source_flag = "[USER LAB DATA APPLIED]" if has_user_lab else "[IN SILICO DA PREDICTION]"
         rec = (
-            f"OECD GL 497 (2o3 DA): {dass_data['2o3_call']} ({dass_data['2o3_concordance']}). "
+            f"{source_flag} OECD GL 497 (2o3 DA): {dass_data['2o3_call']} ({dass_data['2o3_concordance']}). "
             f"ITSv1: {dass_data['its_total_pts']}/6 Pts ({dass_data['its_call']}). "
             f"KE 3/1 STS: {dass_data['ke31_call']}. "
             f"Human PoD (SARA ED01): {pot_data['sara_ed01_pod']}."
@@ -612,13 +615,14 @@ class RegulatoryAgent:
 
 class QAAgent:
     @staticmethod
-    def audit(chem: ChemicalProfile, stat_data: Dict[str, Any]) -> Dict[str, Any]:
-        audit_id = f"QA-{time.strftime('%Y%m%d%H%M')}-{hashlib.sha256((chem.smiles + str(stat_data['score'])).encode()).hexdigest()[:8]}"
-        return {"audit_id": audit_id, "sign_off": "APPROVED_AUTO_SIGNOFF"}
+    def audit(chem: ChemicalProfile, stat_data: Dict[str, Any], has_user_lab: bool) -> Dict[str, Any]:
+        audit_id = f"QA-{time.strftime('%Y%m%d%H%M')}-{hashlib.sha256((chem.smiles + str(stat_data['score']) + str(has_user_lab)).encode()).hexdigest()[:8]}"
+        sign_off = "APPROVED_LAB_ASSISTED_SIGNOFF" if has_user_lab else "APPROVED_AUTO_SIGNOFF"
+        return {"audit_id": audit_id, "sign_off": sign_off}
 
 
 # =====================================================================
-# PDF QPRF DOSSIER GENERATOR (WITH ALL 3 DEFINED APPROACHES)
+# PDF QPRF DOSSIER GENERATOR
 # =====================================================================
 def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -639,7 +643,7 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     c_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=colors.HexColor("#0f172a"))
 
     story.append(Paragraph("OECD QSAR Prediction Reporting Format (QPRF)", title_style))
-    story.append(Paragraph("Harmonized Defined Approaches Dossier: 2o3 DA, ITSv1/v2, KE 3/1 STS, SARA-ICE (OECD GL 497)", c_style))
+    story.append(Paragraph(f"Harmonized Defined Approaches Dossier | Data Source: <b>{res['Data_Source']}</b>", c_style))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0d9488"), spaceAfter=7))
 
     # Section 1: Substance Identification
@@ -661,12 +665,12 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Spacer(1, 4))
 
     # Section 2: OECD GL 497 & DASS Defined Approaches Summary
-    story.append(Paragraph("2. OECD GL 497 & DASS APP DEFINED APPROACH PREDICTIONS", h3_style))
+    story.append(Paragraph("2. OECD GL 497 & DASS DEFINED APPROACH PREDICTIONS", h3_style))
     da_data = [
-        [Paragraph("Defined Approach (DA)", c_bold), Paragraph("Data Interpretation Procedure (DIP)", c_bold), Paragraph("Hazard / Potency Call", c_bold), Paragraph("Regulatory Basis", c_bold)],
-        [Paragraph("1. 2-out-of-3 (2o3 DA)", c_style), Paragraph(str(res["DA_2o3_Concordance"]), c_style), Paragraph(f"<b>{res['DA_2o3_Call']}</b>", c_style), Paragraph("OECD GL 497 / US EPA", c_style)],
+        [Paragraph("Defined Approach (DA)", c_bold), Paragraph("Data Interpretation Procedure (DIP)", c_bold), Paragraph("Hazard / Potency Call", c_bold), Paragraph("Data Provenance", c_bold)],
+        [Paragraph("1. 2-out-of-3 (2o3 DA)", c_style), Paragraph(str(res["DA_2o3_Concordance"]), c_style), Paragraph(f"<b>{res['DA_2o3_Call']}</b>", c_style), Paragraph(res["Data_Source"], c_style)],
         [Paragraph("2. ITS (Integrated Testing)", c_style), Paragraph(f"Score: {res['ITS_Total_Pts']}/6 Pts (DPRA:{res['ITS_DPRA_Pts']}, h-CLAT:{res['ITS_hCLAT_Pts']}, QSAR:{res['ITS_QSAR_Pts']})", c_style), Paragraph(f"<b>{res['ITS_Call']}</b>", c_style), Paragraph("OECD GL 497 Annex 2", c_style)],
-        [Paragraph("3. KE 3/1 STS Strategy", c_style), Paragraph(str(res["KE31_Path"]), c_style), Paragraph(f"<b>{res['KE31_Call']}</b>", c_style), Paragraph("Nukada et al. / US EPA", c_style)],
+        [Paragraph("3. KE 3/1 STS Strategy", c_style), Paragraph(str(res["KE31_Path"]), c_style), Paragraph(f"<b>{res['KE31_Call']}</b>", c_style), Paragraph("Sequential Decision Tree", c_style)],
     ]
     t2 = Table(da_data, colWidths=[130, 160, 130, 120])
     t2.setStyle(TableStyle([
@@ -733,7 +737,16 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
 # =====================================================================
 # FULL MULTI-AGENT PIPELINE EXECUTION
 # =====================================================================
-def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float] = None, lab_hclat_mit: Optional[float] = None) -> Dict[str, Any]:
+def process_single_chemical(
+    identifier: str,
+    lab_dpra_depletion: Optional[float] = None,
+    lab_hclat_mit: Optional[float] = None,
+    lab_dpra_call: Optional[int] = None,
+    lab_ks_call: Optional[int] = None,
+    lab_hclat_call: Optional[int] = None,
+    lab_qsar_call: Optional[int] = None
+) -> Dict[str, Any]:
+
     resolved = UniversalChemicalResolver.resolve_input(identifier)
     if not resolved or not resolved.get("smiles"):
         return {
@@ -769,6 +782,7 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
             "NESIL": "N/A",
             "Kp_cm_h": "N/A",
             "Dermal_Flux": 0.0,
+            "Data_Source": "N/A",
             "Phototoxicity": "N/A",
             "Respiratory_Sens": "N/A",
             "Skin_Irritation": "N/A",
@@ -792,24 +806,39 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
 
     b1 = ChemistAgent().evaluate(chem)
     b2 = ToxicologistAgent().evaluate(chem, b1)
-    
+
+    has_user_lab = any(v is not None for v in [lab_dpra_depletion, lab_hclat_mit, lab_dpra_call, lab_ks_call, lab_hclat_call])
+
     # Check for raw lab data overrides
-    if lab_dpra_depletion is not None:
+    if lab_dpra_call is not None:
+        b2["KE1_DPRA"] = 0.95 if lab_dpra_call == 1 else 0.15
+    elif lab_dpra_depletion is not None and not math.isinf(lab_dpra_depletion):
         b2["KE1_DPRA"] = 0.95 if lab_dpra_depletion >= 22.62 else (0.75 if lab_dpra_depletion >= 6.38 else 0.15)
-    if lab_hclat_mit is not None:
+
+    if lab_ks_call is not None:
+        b2["KE2_KeratinoSens"] = 0.90 if lab_ks_call == 1 else 0.15
+
+    if lab_hclat_call is not None:
+        b2["KE3_hCLAT"] = 0.95 if lab_hclat_call == 1 else 0.15
+    elif lab_hclat_mit is not None and not math.isinf(lab_hclat_mit):
         b2["KE3_hCLAT"] = 0.95 if lab_hclat_mit <= 10.0 else (0.80 if lab_hclat_mit <= 150.0 else (0.55 if lab_hclat_mit <= 500.0 else 0.15))
 
     b3 = StatisticianAgent().evaluate(chem, b2)
+    if lab_qsar_call is not None:
+        b3["score"] = 0.90 if lab_qsar_call == 1 else 0.10
+        b3["call"] = "SENSITIZER" if lab_qsar_call == 1 else "NON_SENSITIZER"
+
     is_sens = b3["call"] == "SENSITIZER"
-    
     b_sara = SARAICEPotencyAgent.evaluate(chem, b3["score"], is_sens)
+    
     dass_res = DefinedApproachAgent.calculate_all_dass(
         b2["KE1_DPRA"], b2["KE2_KeratinoSens"], b2["KE3_hCLAT"], b3["score"],
-        raw_dpra_depletion=lab_dpra_depletion, raw_hclat_mit=lab_hclat_mit
+        raw_dpra_depletion=lab_dpra_depletion, raw_hclat_mit=lab_hclat_mit,
+        raw_dpra_call=lab_dpra_call, raw_ks_call=lab_ks_call, raw_hclat_call=lab_hclat_call
     )
     b_nams = CompanionNAMsAgent.evaluate(chem)
-    b_reg = RegulatoryAgent().evaluate(b3, dass_res, b_sara)
-    b_qa = QAAgent.audit(chem, b3)
+    b_reg = RegulatoryAgent().evaluate(b3, dass_res, b_sara, has_user_lab)
+    b_qa = QAAgent.audit(chem, b3, has_user_lab)
     analogs = ReadAcrossAgent.find_top_analogs(chem.smiles)
 
     return {
@@ -845,6 +874,7 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
         "NESIL": b_sara["nesil_ug_cm2"],
         "Kp_cm_h": b_sara["kp_cm_h"],
         "Dermal_Flux": b_sara["dermal_flux_ug_cm2_h"],
+        "Data_Source": "USER LAB DATA (In Vitro Assays)" if has_user_lab else "IN SILICO (Multi-Agent QSAR)",
         "Phototoxicity": b_nams["phototoxicity_call"],
         "Respiratory_Sens": b_nams["respiratory_call"],
         "Skin_Irritation": b_nams["skin_irritation_call"],
@@ -857,7 +887,7 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
 
 
 # =====================================================================
-# UI RENDERING: DASHBOARD CARDS & TABS
+# UI RENDERING: DASHBOARD CARDS
 # =====================================================================
 def render_dashboard_cards(res: Dict[str, Any]):
     mol = Chem.MolFromSmiles(res["SMILES"])
@@ -867,7 +897,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.code(f"SMILES: {res['SMILES']}", language="text")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("2-of-3 DA Call", f"{res['DA_2o3_Call']}")
-        m2.metric("ITSv1 Matrix Score", f"{res['ITS_Total_Pts']} / 6 Pts")
+        m2.metric("ITSv1 Score", f"{res['ITS_Total_Pts']} / 6 Pts")
         m3.metric("KE 3/1 STS Call", f"{res['KE31_Call'].split()[1] if ' ' in res['KE31_Call'] else res['KE31_Call']}")
         m4.metric("SARA-ICE Human ED01", f"{res['SARA_ED01_PoD']}")
 
@@ -891,7 +921,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.write(f"- **KE3 (h-CLAT):** `{res['KE3_hCLAT']}` ({res['ITS_hCLAT_Pts']} Pts)")
     with c3:
         st.markdown("#### 📊 3. Defined Approaches (DASS)")
-        st.write(f"- **2o3 DA:** `{res['DA_2o3_Call']}` ({res['DA_2o3_Concordance']})")
+        st.write(f"- **Data Source:** `{res['Data_Source']}`")
         st.write(f"- **ITSv1/v2:** `{res['ITS_Call']}`")
         st.write(f"- **KE 3/1 STS:** `{res['KE31_Call']}`")
     with c4:
@@ -924,6 +954,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         <div style="background-color: {summary_bg}; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
             <h4 style="margin: 0 0 8px 0; color: #1e293b;">Harmonized Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
             <p style="margin: 0; color: #334155; font-size: 13.5px;">
+                <strong>Data Provenance:</strong> {res['Data_Source']} &nbsp;|&nbsp; 
                 <strong>2-of-3 DA:</strong> {res['DA_2o3_Call']} &nbsp;|&nbsp; 
                 <strong>ITSv1 Score:</strong> {res['ITS_Total_Pts']}/6 ({res['ITS_Call']}) &nbsp;|&nbsp; 
                 <strong>KE 3/1 STS:</strong> {res['KE31_Call']} &nbsp;|&nbsp; 
@@ -946,13 +977,13 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
 
 # =====================================================================
-# UI TABS: SINGLE, DUAL-MODE LAB ENTRY, SKETCH, BATCH, FORMULATION
+# UI TABS: SINGLE, DASS LAB UPLOAD, SKETCH, BATCH, FORMULATION
 # =====================================================================
-tab_single, tab_hybrid, tab_sketch, tab_batch, tab_formulation = st.tabs([
+tab_single, tab_dass_lab, tab_sketch, tab_batch, tab_formulation = st.tabs([
     "🔍 Single Compound & QPRF",
-    "🧪 Hybrid Lab In Vitro Mode (DASS)",
+    "🧪 DASS Lab Data Batch (.xlsx / .csv / .txt)",
     "✏️ Draw Molecule (JSME)",
-    "📁 High-Throughput Batch Screening",
+    "📁 Standard Screening Batch",
     "🧴 Formulation & Mixture Screener"
 ])
 
@@ -977,24 +1008,128 @@ with tab_single:
                 render_dashboard_cards(res)
 
 # ---------------------------------------------------------------------
-# TAB 2: HYBRID LAB IN VITRO DATA ENTRY MODE (DASS APP SUITE)
+# TAB 2: DASS LAB DATA FILE INGESTION (XLSX, CSV, TXT)
 # ---------------------------------------------------------------------
-with tab_hybrid:
-    st.markdown("### 🧪 Hybrid Lab In Vitro Defined Approaches (2o3, ITS, KE 3/1 STS)")
-    st.write("Input measured laboratory assay readouts to compute all 3 internationally harmonized Defined Approaches.")
+with tab_dass_lab:
+    st.markdown("### 🧪 Ingest In Vitro Laboratory Assays (NICEATM DASS App Template)")
+    st.write(
+        "Upload raw experimental assay results in **Excel (`.xlsx`, `.xls`)**, **CSV (`.csv`)**, or **Tab-Delimited Text (`.txt`)** matching the NIEHS DASS App Template format."
+    )
 
-    c_h1, c_h2, c_h3 = st.columns(3)
-    with c_h1:
-        hyb_cas = st.text_input("Chemical Identifier (CAS / Name / SMILES):", value="106-50-3")
-    with c_h2:
-        lab_dpra = st.number_input("DPRA Mean Peptide Depletion (%):", min_value=0.0, max_value=100.0, value=78.5, step=0.1)
-    with c_h3:
-        lab_hclat = st.number_input("h-CLAT Minimum Induction Threshold (MIT in µg/mL):", min_value=0.1, max_value=5000.0, value=8.5, step=1.0)
+    # Sample template matching DASSApp-dataTemplate.xlsx
+    dass_template_df = pd.DataFrame({
+        "CASRN": ["150-13-0", "62-53-3", "106-51-4", "122-57-6", "35691-65-7", "71-36-3", "104-55-2", "104-54-1", "5392-40-5"],
+        "DPRA_call": [0, 0, 1, 1, 1, 0, 1, 1, 1],
+        "DPRA_mean_dep": [5.55, 4.85, 94.97, 48.09, 64.30, 0.60, 56.95, 7.55, 51.30],
+        "KeratinoSens_call": [0, 0, 1, 1, 1, 0, 1, 1, 1],
+        "hCLAT_call": [0, 1, 1, 1, 1, 0, 1, 1, 1],
+        "hCLAT_MIT": [float("inf"), 550.8, 2.24, 25.8, 9.42, float("inf"), 10.2, 101.6, 8.41],
+        "insil_call": [1, 1, 1, 1, 1, 0, 1, 1, 1]
+    })
+    st.download_button(
+        label="📥 Download Official DASS App Excel Template",
+        data=dass_template_df.to_csv(index=False).encode("utf-8"),
+        file_name="DASSApp-dataTemplate.csv",
+        mime="text/csv"
+    )
 
-    if st.button("🚀 Calculate All 3 Defined Approaches", type="primary"):
-        with st.spinner("Executing 2o3 DA, ITSv1/v2, and KE 3/1 STS algorithms..."):
-            res = process_single_chemical(hyb_cas, lab_dpra_depletion=lab_dpra, lab_hclat_mit=lab_hclat)
-            render_dashboard_cards(res)
+    dass_file = st.file_uploader("Upload DASS Lab Results File (.xlsx, .xls, .csv, .txt)", type=["xlsx", "xls", "csv", "txt"], key="dass_uploader")
+
+    if dass_file:
+        try:
+            if dass_file.name.endswith(".csv"):
+                df_lab = pd.read_csv(dass_file)
+            elif dass_file.name.endswith(".txt"):
+                df_lab = pd.read_csv(dass_file, sep="\t")
+            else:
+                df_lab = pd.read_excel(dass_file)
+
+            st.write("#### Ingested Lab Assay Data Preview:")
+            st.dataframe(df_lab.head(10), use_container_width=True)
+
+            cas_col = None
+            for c in df_lab.columns:
+                if c.strip().lower() in ["casrn", "cas", "cas_rn", "cas_number", "compound"]:
+                    cas_col = c
+                    break
+
+            if not cas_col:
+                cas_col = st.selectbox("Select CASRN column:", df_lab.columns)
+
+            if st.button("🚀 Calculate Defined Approaches from In Vitro Lab Data", type="primary"):
+                lab_results = []
+                p_bar = st.progress(0)
+                total = len(df_lab)
+
+                def parse_val(row, col_name):
+                    if col_name in row and pd.notna(row[col_name]):
+                        v = str(row[col_name]).strip().lower()
+                        if v in ["inf", "infinity"]:
+                            return float("inf")
+                        try:
+                            return float(v)
+                        except Exception:
+                            return None
+                    return None
+
+                def parse_int_call(row, col_name):
+                    if col_name in row and pd.notna(row[col_name]):
+                        try:
+                            return int(float(str(row[col_name]).strip()))
+                        except Exception:
+                            return None
+                    return None
+
+                for idx, row in df_lab.iterrows():
+                    cas_val = str(row[cas_col]).strip()
+                    dpra_dep = parse_val(row, "DPRA_mean_dep") or parse_val(row, "ADRA_mean_dep")
+                    dpra_c = parse_int_call(row, "DPRA_call") or parse_int_call(row, "ADRA_call")
+                    ks_c = parse_int_call(row, "KeratinoSens_call") or parse_int_call(row, "LuSens_call")
+                    hclat_mit = parse_val(row, "hCLAT_MIT") or parse_val(row, "USENS_EC150") or parse_val(row, "GARDskin_input_conc")
+                    hclat_c = parse_int_call(row, "hCLAT_call") or parse_int_call(row, "USENS_call") or parse_int_call(row, "GARDskin_call")
+                    qsar_c = parse_int_call(row, "insil_call")
+
+                    res = process_single_chemical(
+                        cas_val,
+                        lab_dpra_depletion=dpra_dep,
+                        lab_hclat_mit=hclat_mit,
+                        lab_dpra_call=dpra_c,
+                        lab_ks_call=ks_c,
+                        lab_hclat_call=hclat_c,
+                        lab_qsar_call=qsar_c
+                    )
+                    lab_results.append(res)
+                    p_bar.progress((idx + 1) / total)
+
+                df_lab_res = pd.DataFrame(lab_results)
+                df_lab_export = df_lab_res.drop(columns=["Analogs"], errors="ignore")
+
+                st.markdown("### 📊 Harmonized Defined Approach Results (Lab Assisted)")
+                st.dataframe(df_lab_export, use_container_width=True)
+
+                col_exp1, col_exp2 = st.columns(2)
+                with col_exp1:
+                    st.download_button(
+                        label="📥 Download Harmonized Lab Results (CSV)",
+                        data=df_lab_export.to_csv(index=False).encode("utf-8"),
+                        file_name=f"DASS_Lab_Defined_Approach_Results_{time.strftime('%Y%m%d_%H%M')}.csv",
+                        mime="text/csv",
+                        use_container_width=True
+                    )
+                with col_exp2:
+                    excel_buf = io.BytesIO()
+                    with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+                        df_lab_export.to_excel(writer, index=False)
+                    st.download_button(
+                        label="📥 Download Harmonized Lab Results (Excel)",
+                        data=excel_buf.getvalue(),
+                        file_name=f"DASS_Lab_Defined_Approach_Results_{time.strftime('%Y%m%d_%H%M')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+
+        except Exception as e:
+            st.error(f"Error reading DASS lab file: {e}")
 
 # ---------------------------------------------------------------------
 # TAB 3: JSME 2D SKETCHER
@@ -1036,16 +1171,16 @@ with tab_sketch:
             render_dashboard_cards(res)
 
 # ---------------------------------------------------------------------
-# TAB 4: BATCH CSV PROCESSING & EXPORT
+# TAB 4: STANDARD BATCH CSV PROCESSING & EXPORT
 # ---------------------------------------------------------------------
 with tab_batch:
-    st.markdown("### 📂 Upload Batch File (.csv or .xlsx)")
+    st.markdown("### 📂 Upload Standard Identifier Batch File (.csv or .xlsx)")
     sample_df = pd.DataFrame({
         "CAS": ["97-00-7", "111-30-8", "7786-81-4", "7646-79-9", "2634-33-5", "97-54-1", "584-84-9", "65-85-0", "56-81-5"],
         "Compound_Name": ["DNCB", "Glutaraldehyde", "Nickel sulfate", "Cobalt chloride", "BIT", "Isoeugenol", "TDI", "Benzoic acid", "Glycerol"],
     })
-    st.download_button(label="📥 Download Template CSV", data=sample_df.to_csv(index=False).encode("utf-8"), file_name="batch_template.csv", mime="text/csv")
-    uploaded_file = st.file_uploader("Upload CSV / Excel file", type=["csv", "xlsx"])
+    st.download_button(label="📥 Download Standard CSV Template", data=sample_df.to_csv(index=False).encode("utf-8"), file_name="batch_template.csv", mime="text/csv")
+    uploaded_file = st.file_uploader("Upload CSV / Excel file", type=["csv", "xlsx"], key="std_batch_uploader")
 
     if uploaded_file:
         try:
@@ -1060,7 +1195,7 @@ with tab_batch:
             if not target_col:
                 target_col = st.selectbox("Select column with identifiers:", df_input.columns)
 
-            if st.button("🚀 Process Batch Screen", type="primary"):
+            if st.button("🚀 Process Standard Batch Screen", type="primary"):
                 progress_bar = st.progress(0)
                 results = []
                 total = len(df_input)
