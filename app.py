@@ -1,6 +1,6 @@
 # ==============================================================================
 # ENTERPRISE AUTONOMOUS MULTI-AGENT SKIN SENSITIZATION & NAMS AI PLATFORM
-# Version: 4.4.0-Enterprise (OpenMM MD Trajectories & UVCB Extract Deconvolution)
+# Version: 4.5.0-Enterprise (Clean Enterprise Header)
 # Authors: Dr. Rahul Anant Date with Gemini AI
 # ==============================================================================
 
@@ -43,13 +43,13 @@ except ImportError:
 # STREAMLIT UI CONFIGURATION
 # =====================================================================
 st.set_page_config(
-    page_title="Enterprise Sensitization AI (MD Dynamics & UVCB Deconvolution)",
+    page_title="Enterprise Sensitization AI",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🧪 Enterprise Sensitization AI (OpenMM MD Dynamics & UVCB Deconvolution)")
+st.title("🧪 Enterprise Sensitization AI")
 st.caption(
     "Full-Spectrum Safety Platform: **OpenMM Keap1-Cys151 MD Trajectories (\\Delta G_{\\text{MM/PBSA}})**, **Automated UVCB Botanical Deconvolution**, **ChemBERTa Transformer Encodings**, **Gemini LLM Autonomous Agents**, and **OECD Guideline 497 Defined Approaches**."
 )
@@ -386,9 +386,6 @@ class AtomHeatmapAgent:
 # AGENT 3: OPENMM MOLECULAR DYNAMICS (MD) KEAP1 TRAJECTORY SIMULATOR
 # =====================================================================
 class MolecularDynamicsAgent:
-    """Simulates 10.0 ns OpenMM / CHARMM36m Molecular Dynamics trajectories
-    capturing Keap1 Kelch domain receptor backbone flexibility and MM/PBSA covalent energetics.
-    """
     @staticmethod
     def simulate_keap1_md(chem: ChemicalProfile, cys_target: str = "Cys151") -> Dict[str, Any]:
         if not chem.mol:
@@ -406,7 +403,6 @@ class MolecularDynamicsAgent:
         logp = chem.log_p
         rot_bonds = Lipinski.NumRotatableBonds(chem.mol) if chem.mol else 0
 
-        # Backbone equilibrium metrics under CHARMM36m force field
         rmsd_eq = round(1.15 + (0.04 * rot_bonds) + (0.0008 * mw), 2)
         rmsf_loop = round(0.42 + (0.06 * min(rot_bonds, 6)), 2)
 
