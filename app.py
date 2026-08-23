@@ -370,18 +370,12 @@ class ToxicologistAgent:
 # AGENT 3: QUANTITATIVE POTENCY (EC3, NESIL) & BIOAVAILABILITY (Kp)
 # =====================================================================
 class PotencyBioavailabilityAgent:
-    """Calculates:
-    1. Stratum Corneum Permeability Kp (cm/h) via Potts & Guy Model
-    2. Quantitative LLNA EC3 (%) via Electrophilicity-Lipophilicity Model
-    3. NESIL (No Expected Sensitization Induction Level, ug/cm2)
-    4. Daily Dermal Delivery (ug/cm2/day)
-    """
     @staticmethod
     def evaluate(chem: ChemicalProfile, stat_score: float, is_sens: bool) -> Dict[str, Any]:
         if not chem.mol or chem.mw == 0:
             return {
                 "log_kp": 0.0,
-                "kp_cm_h": 0.0,
+                "kp_cm_h": "0.0",
                 "dermal_flux_ug_cm2_h": 0.0,
                 "pred_ec3_percent": "N/A",
                 "potency_class": "Non-Sensitizer",
@@ -389,47 +383,41 @@ class PotencyBioavailabilityAgent:
                 "dst_category": "High (>500 ug/cm2)"
             }
 
-        # 1. Potts & Guy Stratum Corneum Permeability Model:
-        # log Kp (cm/s) = -2.7 + 0.71 * LogP - 0.0061 * MW
+        # Potts & Guy Model: log Kp (cm/s) = -2.7 + 0.71*LogP - 0.0061*MW
         log_kp = -2.7 + (0.71 * chem.log_p) - (0.0061 * chem.mw)
-        # Convert to cm/h (* 3600)
         kp_cm_h = (10 ** log_kp) * 3600
-
-        # Estimated Max Dermal Flux J_max = Kp * S_w (approx for saturated solution, ug/cm2/h)
         flux_est = max(0.001, round(kp_cm_h * 100, 3))
 
         if not is_sens:
             return {
                 "log_kp": round(log_kp, 3),
-                "kp_cm_h": f"{kp_cm_h:.4e}",
+                "kp_cm_h": f"{kp_cm_h:.2e}",
                 "dermal_flux_ug_cm2_h": flux_est,
-                "pred_ec3_percent": "> 100% (Negative)",
+                "pred_ec3_percent": "> 100%",
                 "potency_class": "Non-Sensitizer",
                 "nesil_ug_cm2": "No Limit (Safe)",
                 "dst_category": "Exempt / Non-reactive"
             }
 
-        # 2. Quantitative EC3 (%) Estimation:
-        # log(1/EC3) = f(consensus_score, logP, reactivity)
         if stat_score >= 0.90:
             pred_ec3 = round(max(0.01, 0.15 * (10 ** (-0.3 * chem.log_p))), 3)
-            potency = "GHS 1A (Extreme/Strong)"
+            potency = "Category 1A (Extreme/Strong)"
             nesil = round(max(2.5, pred_ec3 * 50), 1)
-            dst = "High Hazard (NESIL < 100 ug/cm2)"
+            dst = "High Hazard (<100 µg/cm²)"
         elif stat_score >= 0.75:
             pred_ec3 = round(min(9.9, max(0.5, 2.5 * (10 ** (-0.2 * chem.log_p)))), 2)
-            potency = "GHS 1B (Moderate)"
+            potency = "Category 1B (Moderate)"
             nesil = round(pred_ec3 * 150, 1)
-            dst = "Moderate Hazard (NESIL 100-500 ug/cm2)"
+            dst = "Moderate Hazard (100-500 µg/cm²)"
         else:
             pred_ec3 = round(min(50.0, max(10.1, 15.0 - (1.2 * chem.log_p))), 1)
-            potency = "GHS 1B (Weak)"
+            potency = "Category 1B (Weak)"
             nesil = round(pred_ec3 * 300, 1)
-            dst = "Low Hazard (NESIL > 500 ug/cm2)"
+            dst = "Low Hazard (>500 µg/cm²)"
 
         return {
             "log_kp": round(log_kp, 3),
-            "kp_cm_h": f"{kp_cm_h:.4e}",
+            "kp_cm_h": f"{kp_cm_h:.2e}",
             "dermal_flux_ug_cm2_h": flux_est,
             "pred_ec3_percent": f"{pred_ec3}%",
             "potency_class": potency,
@@ -456,7 +444,7 @@ class ReadAcrossAgent:
             if ref_mol:
                 ref_fp = AllChem.GetMorganFingerprintAsBitVect(ref_mol, 2, nBits=1024)
                 similarity = DataStructs.TanimotoSimilarity(target_fp, ref_fp)
-                if 0.05 < similarity < 0.999:  # Exclude exact self match
+                if 0.05 < similarity < 0.999:
                     matches.append({
                         "cas": cas,
                         "name": data["name"],
@@ -473,11 +461,6 @@ class ReadAcrossAgent:
 # AGENT 5: MULTI-ENDPOINT COMPANION NAMS
 # =====================================================================
 class CompanionNAMsAgent:
-    """Evaluates Companion Non-Animal Endpoints:
-    1. Phototoxicity / Photoallergy (OECD TG 432): Conjugated Chromophores / Molar Extinction
-    2. Respiratory Sensitization: Asthmagenic alerts & Lysine vs Cysteine Selectivity
-    3. Eye & Skin Irritation (OECD TG 439 / 492): RhE Viability Model
-    """
     @staticmethod
     def evaluate(chem: ChemicalProfile) -> Dict[str, Any]:
         if not chem.mol:
@@ -488,19 +471,15 @@ class CompanionNAMsAgent:
                 "eye_irritation_call": "N/A",
             }
 
-        # 1. Phototoxicity (Conjugated polyenes, furocoumarins, anthracenes, phenothiazines)
         has_photo_chromophore = (Descriptors.NumAromaticRings(chem.mol) >= 2) or ("c1ccc2c(c1)ccc3ccccc23" in chem.smiles) or ("O=C1OC2=" in chem.smiles)
-        photo_call = "POTENTIAL_PHOTOTOXIC (OECD TG 432 Required)" if has_photo_chromophore and chem.log_p > 1.5 else "NON_PHOTOTOXIC (Low UV Absorbance)"
+        photo_call = "Potential Phototoxic" if has_photo_chromophore and chem.log_p > 1.5 else "Non-Phototoxic"
 
-        # 2. Respiratory Sensitization (Anhydrides, Diisocyanates, Lysine-selective binders)
         is_resp = any(k in chem.smiles for k in ["N=C=O", "O=C1OC(=O)"]) or (chem.mw > 400 and "N" in chem.smiles and chem.log_p < 1.0)
-        resp_call = "RESPIRATORY_SENSITIZER (Asthmagen Hazard)" if is_resp else "NON_RESPIRATORY_SENSITIZER"
+        resp_call = "Respiratory Sensitizer" if is_resp else "Non-Respiratory Sens"
 
-        # 3. Skin Irritation (OECD TG 439) & Eye Irritation (OECD TG 492)
-        # Organic acids (pKa < 4), strong bases, extreme lipophilicity/surfactants
         is_irritant = (chem.log_p > 4.5 and chem.mw < 300) or ("C(=O)O" in chem.smiles and chem.mw < 150) or (chem.tpsa > 100 and chem.mw < 120)
-        skin_irr = "GHS Category 2 (Skin Irritant)" if is_irritant else "GHS Not Classified (Non-Irritant)"
-        eye_irr = "GHS Category 1/2A (Eye Irritant)" if (is_irritant or "C=O" in chem.smiles and chem.mw < 100) else "GHS Not Classified (Non-Irritant)"
+        skin_irr = "Skin Irritant (Cat 2)" if is_irritant else "Non-Irritant (NC)"
+        eye_irr = "Eye Irritant (Cat 1/2A)" if (is_irritant or "C=O" in chem.smiles and chem.mw < 100) else "Non-Irritant (NC)"
 
         return {
             "phototoxicity_call": photo_call,
@@ -541,7 +520,7 @@ class RegulatoryAgent:
 
         if is_sens:
             ghs = f"GHS {pot_data['potency_class']}"
-            next_action = f"OECD GL 497 Positive (2-of-3 Battery Concordant). Stratified as {pot_data['potency_class']}. Target NESIL: {pot_data['nesil_ug_cm2']}."
+            next_action = f"OECD GL 497 Positive (2-of-3 Concordance). Stratified as GHS {pot_data['potency_class']}."
         else:
             ghs = "GHS Not Classified (Non-Sensitizer)"
             next_action = "2 concordant negative in vitro assays required for regulatory dossier sign-off."
@@ -561,87 +540,145 @@ class QAAgent:
 
 
 # =====================================================================
-# PDF QPRF DOSSIER GENERATOR
+# PDF QPRF DOSSIER GENERATOR (ZERO OVERLAP / BULLETPROOF GRID)
 # =====================================================================
 def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
     styles = getSampleStyleSheet()
     story = []
 
-    # Title & Header
+    # Typography & Styles
     title_style = ParagraphStyle(
         'DocTitle',
         parent=styles['Heading1'],
-        fontSize=18,
-        leading=22,
+        fontSize=16,
+        leading=20,
         textColor=colors.HexColor("#0f172a"),
-        spaceAfter=6
+        spaceAfter=4
     )
-    story.append(Paragraph("OECD QSAR Prediction Reporting Format (QPRF)", title_style))
-    story.append(Paragraph("Regulatory Skin Sensitization & NAMs Evaluation Dossier (OECD GL 497)", styles['Normal']))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0d9488"), spaceAfter=14))
+    h3_style = ParagraphStyle(
+        'SectionH3',
+        parent=styles['Heading3'],
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor("#0f172a"),
+        spaceBefore=8,
+        spaceAfter=4
+    )
+    c_style = ParagraphStyle(
+        'CellText',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10.5,
+        textColor=colors.HexColor("#1e293b")
+    )
+    c_bold = ParagraphStyle(
+        'CellBold',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10.5,
+        fontName='Helvetica-Bold',
+        textColor=colors.HexColor("#0f172a")
+    )
 
+    story.append(Paragraph("OECD QSAR Prediction Reporting Format (QPRF)", title_style))
+    story.append(Paragraph("Regulatory Skin Sensitization & NAMs Evaluation Dossier (OECD GL 497)", c_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0d9488"), spaceAfter=10))
+
+    # Total width on Letter (8.5 * 72 - 72) = 540 pt
     # Section 1: Substance Identification
-    story.append(Paragraph("<b>1. SUBSTANCE IDENTIFICATION & DESCRIPTORS</b>", styles['Heading3']))
+    story.append(Paragraph("1. SUBSTANCE IDENTIFICATION & DESCRIPTORS", h3_style))
     sub_data = [
-        ["Chemical Name:", res["Resolved_Name"], "CAS RN:", res["Input"]],
-        ["SMILES:", Paragraph(f"<font size=8>{res['SMILES']}</font>", styles['Normal']), "MW / LogP:", f"{res['MW']} g/mol | {res['LogP']}"],
-        ["TPSA / Rot. Bonds:", f"{res['TPSA']} Å²", "Applicability Domain:", res["Applicability_Domain"]],
+        [Paragraph("Chemical Name:", c_bold), Paragraph(str(res["Resolved_Name"]), c_style), Paragraph("CAS RN:", c_bold), Paragraph(str(res["Input"]), c_style)],
+        [Paragraph("SMILES:", c_bold), Paragraph(f"<font size=7>{res['SMILES']}</font>", c_style), Paragraph("MW / LogP:", c_bold), Paragraph(f"{res['MW']} g/mol | {res['LogP']}", c_style)],
+        [Paragraph("TPSA / Rot. Bonds:", c_bold), Paragraph(f"{res['TPSA']} Å²", c_style), Paragraph("Applicability Domain:", c_bold), Paragraph(str(res["Applicability_Domain"]), c_style)],
     ]
-    t1 = Table(sub_data, colWidths=[110, 180, 110, 140])
+    t1 = Table(sub_data, colWidths=[115, 185, 115, 125])
     t1.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ]))
     story.append(t1)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 6))
 
     # Section 2: OECD GL 497 Defined Approach Results
-    story.append(Paragraph("<b>2. OECD GL 497 DEFINED APPROACH PREDICTION</b>", styles['Heading3']))
+    story.append(Paragraph("2. OECD GL 497 DEFINED APPROACH PREDICTION", h3_style))
     da_data = [
-        ["Key Event (AOP)", "In Vitro Assay Reference", "Mechanistic Response", "Quantitative Score"],
-        ["KE1 (Protein Haptenation)", "OECD TG 442C (DPRA)", "Covalent / Coordinate Adduct", str(res["KE1_DPRA"])],
-        ["KE2 (Keratinocyte ARE)", "OECD TG 442D (KeratinoSens)", "Keap1-Nrf2 ARE Induction", str(res["KE2_KeratinoSens"])],
-        ["KE3 (Dendritic Activation)", "OECD TG 442E (h-CLAT)", "CD86 / CD54 Co-stimulation", str(res["KE3_hCLAT"])],
-        ["Consensus Call (DA)", res["OECD_497_Call"], "UN GHS Category:", res["GHS_Category"]],
+        [Paragraph("Key Event (AOP)", c_bold), Paragraph("In Vitro Assay Reference", c_bold), Paragraph("Mechanistic Response", c_bold), Paragraph("Score", c_bold)],
+        [Paragraph("KE1 (Protein Haptenation)", c_style), Paragraph("OECD TG 442C (DPRA)", c_style), Paragraph("Covalent / Coordinate Adduct", c_style), Paragraph(str(res["KE1_DPRA"]), c_style)],
+        [Paragraph("KE2 (Keratinocyte ARE)", c_style), Paragraph("OECD TG 442D (KeratinoSens)", c_style), Paragraph("Keap1-Nrf2 ARE Induction", c_style), Paragraph(str(res["KE2_KeratinoSens"]), c_style)],
+        [Paragraph("KE3 (Dendritic Activation)", c_style), Paragraph("OECD TG 442E (h-CLAT)", c_style), Paragraph("CD86/CD54 Co-stimulation", c_style), Paragraph(str(res["KE3_hCLAT"]), c_style)],
+        [Paragraph("Consensus Call (DA)", c_bold), Paragraph(f"<b>{res['OECD_497_Call']}</b>", c_style), Paragraph("UN GHS Category:", c_bold), Paragraph(str(res["GHS_Category"]), c_style)],
     ]
-    t2 = Table(da_data, colWidths=[150, 140, 160, 90])
+    t2 = Table(da_data, colWidths=[150, 140, 170, 80])
     t2.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0f172a")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('FONTSIZE', (0,0), (-1,-1), 8.5),
         ('BACKGROUND', (0,4), (-1,4), colors.HexColor("#f1f5f9")),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ]))
     story.append(t2)
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 6))
 
-    # Section 3: Potency & Companion NAMs
-    story.append(Paragraph("<b>3. POTENCY, BIOAVAILABILITY & COMPANION NAMS</b>", styles['Heading3']))
+    # Section 3: Potency, Bioavailability & Companion NAMs (Clean 4-column layout)
+    story.append(Paragraph("3. POTENCY, BIOAVAILABILITY & COMPANION NAMS", h3_style))
     pot_data = [
-        ["Predicted LLNA EC3 (%):", res["Potency_EC3"], "NESIL Threshold:", res["NESIL"]],
-        ["Permeability Kp (cm/h):", res["Kp_cm_h"], "Dermal Flux (Jmax):", f"{res['Dermal_Flux']} µg/cm²/h"],
-        ["Phototoxicity (TG 432):", res["Phototoxicity"], "Respiratory Asthmagen:", res["Respiratory_Sens"]],
-        ["Skin Irritation (TG 439):", res["Skin_Irritation"], "Eye Irritation (TG 492):", res["Eye_Irritation"]],
+        [
+            Paragraph("Predicted LLNA EC3 (%):", c_bold),
+            Paragraph(str(res["Potency_EC3"]), c_style),
+            Paragraph("NESIL Threshold:", c_bold),
+            Paragraph(str(res["NESIL"]), c_style)
+        ],
+        [
+            Paragraph("Permeability Kp (cm/h):", c_bold),
+            Paragraph(str(res["Kp_cm_h"]), c_style),
+            Paragraph("Dermal Flux (Jmax):", c_bold),
+            Paragraph(f"{res['Dermal_Flux']} µg/cm²/h", c_style)
+        ],
+        [
+            Paragraph("Phototoxicity (TG 432):", c_bold),
+            Paragraph(str(res["Phototoxicity"]), c_style),
+            Paragraph("Respiratory Asthmagen:", c_bold),
+            Paragraph(str(res["Respiratory_Sens"]), c_style)
+        ],
+        [
+            Paragraph("Skin Irritation (TG 439):", c_bold),
+            Paragraph(str(res["Skin_Irritation"]), c_style),
+            Paragraph("Eye Irritation (TG 492):", c_bold),
+            Paragraph(str(res["Eye_Irritation"]), c_style)
+        ],
     ]
-    t3 = Table(pot_data, colWidths=[140, 130, 140, 130])
+    t3 = Table(pot_data, colWidths=[135, 135, 135, 135])
     t3.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('FONTSIZE', (0,0), (-1,-1), 8.5),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4.5),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
     ]))
     story.append(t3)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 8))
 
-    # Quality Sign-off
-    story.append(Paragraph("<b>4. REGULATORY QUALITY AUDIT & SIGN-OFF</b>", styles['Heading3']))
-    story.append(Paragraph(f"<b>Audit Signature Hash:</b> <font face='Courier'>{res['Audit_ID']}</font>", styles['Normal']))
-    story.append(Paragraph(f"<b>QA Determination:</b> {res['QA_SignOff']} | Created by <b>Dr. Rahul Anant Date</b> with <b>Gemini AI</b>", styles['Normal']))
+    # Section 4: Quality Audit Sign-off
+    story.append(Paragraph("4. REGULATORY QUALITY AUDIT & SIGN-OFF", h3_style))
+    story.append(Paragraph(f"<b>Audit Signature Hash:</b> <font face='Courier' size=7.5>{res['Audit_ID']}</font>", c_style))
+    story.append(Paragraph(f"<b>QA Determination:</b> {res['QA_SignOff']} | Created by <b>Dr. Rahul Anant Date</b> with <b>Gemini AI</b>", c_style))
 
     doc.build(story)
     return buffer.getvalue()
@@ -785,8 +822,8 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.write(f"- **LogP / MW:** `{res['LogP']} / {res['MW']}`")
     with c4:
         st.markdown("#### 🛡️ 4. Companion NAMs")
-        st.write(f"- **Phototoxicity:** `{res['Phototoxicity'].split()[0]}`")
-        st.write(f"- **Respiratory:** `{res['Respiratory_Sens'].split()[0]}`")
+        st.write(f"- **Phototoxicity:** `{res['Phototoxicity']}`")
+        st.write(f"- **Respiratory:** `{res['Respiratory_Sens']}`")
         st.write(f"- **Skin Irritation:** `{res['Skin_Irritation']}`")
 
     # Read-Across Section
@@ -939,7 +976,6 @@ with tab_batch:
                     progress_bar.progress((idx + 1) / total)
 
                 df_results = pd.DataFrame(results)
-                # Drop nested objects for flat table export
                 df_export = df_results.drop(columns=["Analogs"], errors="ignore")
                 st.dataframe(df_export, use_container_width=True)
 
@@ -983,7 +1019,6 @@ with tab_formulation:
 
     if st.button("🧪 Evaluate Formulation Sensitization Risk", type="primary"):
         with st.spinner("Analyzing cosmetic formulation matrix..."):
-            total_wt = edited_df["Concentration_wt_percent"].sum()
             form_results = []
             cumulative_sens_index = 0.0
             ghs_cat1_triggers = []
@@ -993,7 +1028,6 @@ with tab_formulation:
                 conc = float(row["Concentration_wt_percent"])
                 ind_res = process_single_chemical(cas_val)
                 
-                # Check GHS Cut-Offs: Cat 1A >= 0.1%, Cat 1B >= 1.0%
                 is_sens = ind_res["OECD_497_Call"] == "SENSITIZER"
                 is_cat1a = "1A" in ind_res["GHS_Category"]
                 
