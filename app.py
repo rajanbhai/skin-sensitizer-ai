@@ -1467,9 +1467,9 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
     with c_img:
         if res.get("Heatmap_PNG"):
-            st.image(res["Heatmap_PNG"], caption="2D Atom Attribution Heatmap (Red = Reactive)", use_container_width=True)
+            st.image(res["Heatmap_PNG"], caption="2D Atom Attribution Heatmap (Red = Reactive)", width="stretch")
         elif mol:
-            st.image(Draw.MolToImage(mol, size=(300, 180)), caption="2D Structure", use_container_width=True)
+            st.image(Draw.MolToImage(mol, size=(300, 180)), caption="2D Structure", width="stretch")
         else:
             st.info("Inorganic / Elemental Species")
 
@@ -1551,7 +1551,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             file_name=f"Executive_AOP_Dossier_{res['Input']}.pdf",
             mime="application/pdf",
             type="primary",
-            use_container_width=True
+            width="stretch"
         )
     with col_pdf2:
         qprf_pdf_bytes = generate_qprf_pdf(res)
@@ -1560,7 +1560,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             data=qprf_pdf_bytes,
             file_name=f"OECD_QPRF_Dossier_{res['Input']}.pdf",
             mime="application/pdf",
-            use_container_width=True
+            width="stretch"
         )
 
 
@@ -1587,7 +1587,7 @@ with tab_single:
     with col_btn:
         st.write("")
         st.write("")
-        run_single_btn = st.button("Run Evaluation", type="primary", use_container_width=True)
+        run_single_btn = st.button("Run Evaluation", type="primary", width="stretch")
 
     if run_single_btn or single_input:
         with st.spinner(f"Evaluating {single_input}..."):
@@ -1634,7 +1634,7 @@ with tab_dass_lab:
                 df_lab = pd.read_excel(dass_file)
 
             st.write("#### Ingested Lab Assay Data Preview:")
-            st.dataframe(df_lab.head(10), use_container_width=True)
+            st.dataframe(df_lab.head(10), width="stretch")
 
             cas_col = None
             for c in df_lab.columns:
@@ -1695,7 +1695,7 @@ with tab_dass_lab:
                 df_lab_export = df_lab_res.drop(columns=["Analogs", "Heatmap_PNG", "LLM_Council"], errors="ignore")
 
                 st.markdown("### 📊 Harmonized Defined Approach Results (Lab Assisted)")
-                st.dataframe(df_lab_export, use_container_width=True)
+                st.dataframe(df_lab_export, width="stretch")
 
                 col_exp1, col_exp2 = st.columns(2)
                 with col_exp1:
@@ -1704,7 +1704,7 @@ with tab_dass_lab:
                         data=df_lab_export.to_csv(index=False).encode("utf-8"),
                         file_name=f"DASS_Lab_Defined_Approach_Results_{time.strftime('%Y%m%d_%H%M')}.csv",
                         mime="text/csv",
-                        use_container_width=True
+                        width="stretch"
                     )
                 with col_exp2:
                     excel_buf = io.BytesIO()
@@ -1715,7 +1715,7 @@ with tab_dass_lab:
                         data=excel_buf.getvalue(),
                         file_name=f"DASS_Lab_Defined_Approach_Results_{time.strftime('%Y%m%d_%H%M')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
+                        width="stretch"
                     )
 
         except Exception as e:
@@ -1775,7 +1775,7 @@ with tab_batch:
     if uploaded_file:
         try:
             df_input = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-            st.dataframe(df_input.head(), use_container_width=True)
+            st.dataframe(df_input.head(), width="stretch")
 
             target_col = None
             for c in df_input.columns:
@@ -1797,7 +1797,7 @@ with tab_batch:
 
                 df_results = pd.DataFrame(results)
                 df_export = df_results.drop(columns=["Analogs", "Heatmap_PNG", "LLM_Council"], errors="ignore")
-                st.dataframe(df_export, use_container_width=True)
+                st.dataframe(df_export, width="stretch")
 
                 col_exp1, col_exp2 = st.columns(2)
                 with col_exp1:
@@ -1806,7 +1806,7 @@ with tab_batch:
                         data=df_export.to_csv(index=False).encode("utf-8"),
                         file_name=f"batch_sensitization_results_{time.strftime('%Y%m%d_%H%M')}.csv",
                         mime="text/csv",
-                        use_container_width=True
+                        width="stretch"
                     )
                 with col_exp2:
                     excel_buffer = io.BytesIO()
@@ -1817,7 +1817,7 @@ with tab_batch:
                         data=excel_buffer.getvalue(),
                         file_name=f"batch_sensitization_results_{time.strftime('%Y%m%d_%H%M')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
+                        width="stretch"
                     )
         except Exception as e:
             st.error(f"Error reading file: {e}")
@@ -1835,7 +1835,7 @@ with tab_formulation:
         "Concentration_wt_percent": [85.0, 8.0, 5.0, 0.8, 0.05, 0.2]
     })
 
-    edited_df = st.data_editor(default_formulation, num_rows="dynamic", use_container_width=True)
+    edited_df = st.data_editor(default_formulation, num_rows="dynamic", width="stretch")
 
     if st.button("🧪 Evaluate Formulation Sensitization Risk", type="primary"):
         with st.spinner("Analyzing cosmetic formulation matrix..."):
@@ -1868,7 +1868,7 @@ with tab_formulation:
                     "SARA PoD": ind_res["SARA_ED01_PoD"]
                 })
 
-            st.dataframe(pd.DataFrame(form_results), use_container_width=True)
+            st.dataframe(pd.DataFrame(form_results), width="stretch")
             
             st.markdown("---")
             st.markdown("### 📋 Formulation Safety Verdict")
@@ -1947,7 +1947,7 @@ with tab_uvcb:
                         "SARA PoD": ind_res["SARA_ED01_PoD"],
                     })
 
-            st.dataframe(pd.DataFrame(uvcb_results), use_container_width=True)
+            st.dataframe(pd.DataFrame(uvcb_results), width="stretch")
 
             st.markdown("---")
             st.markdown("### 🌿 UVCB Extract Assessment Outcome")
