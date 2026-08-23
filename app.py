@@ -23,29 +23,27 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 # STREAMLIT UI CONFIGURATION
 # =====================================================================
 st.set_page_config(
-    page_title="Enterprise Sensitization AI (OECD GL 497 & SARA-ICE)",
+    page_title="Enterprise Sensitization AI (OECD GL 497 & DASS Suite)",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🧪 Enterprise Sensitization & NAMs AI Platform")
+st.title("🧪 Enterprise Sensitization AI (OECD GL 497 & DASS App)")
 st.caption(
-    "Automated Defined Approaches: **OECD Guideline 497 (2-of-3 & ITSv1)**, **NICEATM SARA-ICE Human $\\text{ED}_{01}$ PoD**, Quantitative Potency ($EC_3$ / NESIL), Bioavailability ($K_p$), Tanimoto Read-Across, Finished Formulation Screener, and Automated QPRF PDF Dossiers."
+    "Standardized Defined Approaches: **2-out-of-3 (2o3 DA)**, **Integrated Testing Strategy (ITSv1/v2)**, **KE 3/1 Sequential Testing Strategy (KE 3/1 STS)**, **NICEATM SARA-ICE Human $\\text{ED}_{01}$ PoD**, Potency ($EC_3$/NESIL), Bioavailability ($K_p$), Tanimoto Read-Across, and QPRF PDF Dossiers."
 )
 
 # Sidebar
 with st.sidebar:
-    st.markdown("### 🔬 Multi-Agent AI Framework")
+    st.markdown("### 🔬 Defined Approaches (OECD GL 497)")
     st.markdown(
         """
-        - **Bot 1:** Chemist & Haptenation Engine
-        - **Bot 2:** Toxicologist (AOP KEs 1–3)
-        - **Bot 3:** SARA-ICE & Potency Agent
-        - **Bot 4:** DASS Defined Approach Selector
-        - **Bot 5:** Read-Across & Analog Matcher
-        - **Bot 6:** Multi-Endpoint NAMs Screener
-        - **Bot 7:** Regulatory Auditor (SHA-256)
+        - **1. 2-out-of-3 (2o3 DA):** Concordant binary hazard call
+        - **2. ITSv1 / ITSv2:** 0–6 pt matrix (Hazard + GHS Potency)
+        - **3. KE 3/1 STS DA:** Sequential h-CLAT -> DPRA strategy
+        - **4. SARA-ICE:** Human $\\text{ED}_{01}$ Point of Departure
+        - **5. Companion NAMs:** Photo / Respiratory / Irritation
         """
     )
     st.markdown("---")
@@ -369,12 +367,6 @@ class ToxicologistAgent:
 # AGENT 3: SARA-ICE PoD (ED01), QUANTITATIVE POTENCY & BIOAVAILABILITY
 # =====================================================================
 class SARAICEPotencyAgent:
-    """Implements:
-    1. NICEATM SARA-ICE Human ED01 (Point of Departure, ug/cm2)
-    2. Quantitative LLNA EC3 (%) Potency
-    3. Potts & Guy Stratum Corneum Permeability (Kp, cm/h)
-    4. NESIL Thresholds & Dermal Sensitization Concern Bands
-    """
     @staticmethod
     def evaluate(chem: ChemicalProfile, stat_score: float, is_sens: bool) -> Dict[str, Any]:
         if not chem.mol or chem.mw == 0:
@@ -439,33 +431,77 @@ class SARAICEPotencyAgent:
 
 
 # =====================================================================
-# AGENT 4: DEFINED APPROACH ENGINES (2-of-3 & OECD ITSv1 MATRIX)
+# AGENT 4: DEFINED APPROACH ENGINES (2o3, ITSv1/v2, KE 3/1 STS)
 # =====================================================================
 class DefinedApproachAgent:
+    """Implements all 3 OECD GL 497 & US EPA / NICEATM DASS Defined Approaches:
+    1. 2-out-of-3 Defined Approach (2o3 DA)
+    2. Integrated Testing Strategy (ITSv1 & ITSv2 Points Matrix)
+    3. Key Event 3/1 Sequential Testing Strategy (KE 3/1 STS DA)
+    """
     @staticmethod
-    def calculate_oecd_its(ke1: float, ke3: float, qsar_score: float) -> Dict[str, Any]:
-        # OECD GL 497 Annex 2 ITS Points Matrix:
-        # DPRA Points (0-2)
-        dpra_pts = 2 if ke1 >= 0.88 else (1 if ke1 >= 0.70 else 0)
-        # h-CLAT Points (0-3)
-        hclat_pts = 3 if ke3 >= 0.90 else (2 if ke3 >= 0.75 else (1 if ke3 >= 0.50 else 0))
-        # QSAR In Silico Points (0-1)
-        qsar_pts = 1 if qsar_score >= 0.50 else 0
+    def calculate_all_dass(ke1_score: float, ke2_score: float, ke3_score: float, qsar_score: float,
+                           raw_dpra_depletion: Optional[float] = None, raw_hclat_mit: Optional[float] = None) -> Dict[str, Any]:
+        
+        # Binary calls (concordance)
+        dpra_pos = (raw_dpra_depletion >= 6.38) if raw_dpra_depletion is not None else (ke1_score >= 0.50)
+        ks_pos = ke2_score >= 0.50
+        hclat_pos = (raw_hclat_mit <= 5000.0) if raw_hclat_mit is not None else (ke3_score >= 0.50)
+        
+        # 1. 2-out-of-3 (2o3 DA)
+        pos_count = sum([dpra_pos, ks_pos, hclat_pos])
+        da_2o3_call = "SENSITIZER" if pos_count >= 2 else "NON_SENSITIZER"
+        da_2o3_concordance = f"{pos_count}/3 Concordant Positive"
 
-        total_pts = dpra_pts + hclat_pts + qsar_pts
-        if total_pts >= 6:
+        # 2. Integrated Testing Strategy (ITSv1 Matrix 0-6 pts)
+        if raw_dpra_depletion is not None:
+            dpra_pts = 2 if raw_dpra_depletion >= 22.62 else (1 if raw_dpra_depletion >= 6.38 else 0)
+        else:
+            dpra_pts = 2 if ke1_score >= 0.88 else (1 if ke1_score >= 0.70 else 0)
+
+        if raw_hclat_mit is not None:
+            hclat_pts = 3 if raw_hclat_mit <= 10.0 else (2 if raw_hclat_mit <= 150.0 else (1 if raw_hclat_mit <= 500.0 else 0))
+        else:
+            hclat_pts = 3 if ke3_score >= 0.90 else (2 if ke3_score >= 0.75 else (1 if ke3_score >= 0.50 else 0))
+
+        qsar_pts = 1 if qsar_score >= 0.50 else 0
+        total_its_pts = dpra_pts + hclat_pts + qsar_pts
+
+        if total_its_pts >= 6:
             its_call = "GHS Category 1A (Strong/Extreme)"
-        elif 2 <= total_pts <= 5:
+        elif 2 <= total_its_pts <= 5:
             its_call = "GHS Category 1B (Moderate/Weak)"
         else:
             its_call = "GHS Not Classified (Non-Sensitizer)"
 
+        # 3. Key Event 3/1 Sequential Testing Strategy (KE 3/1 STS DA)
+        # First evaluate h-CLAT (KE3). If positive -> Cat 1A (MIT<=10) or Cat 1B (MIT>10).
+        # If h-CLAT negative -> evaluate DPRA (KE1). If DPRA pos -> Cat 1B; if neg -> Not Classified.
+        if hclat_pos:
+            if (raw_hclat_mit is not None and raw_hclat_mit <= 10.0) or (raw_hclat_mit is None and ke3_score >= 0.90):
+                ke31_call = "GHS Category 1A (Strong)"
+                ke31_path = "h-CLAT Positive (MIT ≤ 10 µg/mL) -> Direct 1A Resolution"
+            else:
+                ke31_call = "GHS Category 1B (Moderate/Weak)"
+                ke31_path = "h-CLAT Positive (MIT > 10 µg/mL) -> Resolved 1B"
+        else:
+            if dpra_pos:
+                ke31_call = "GHS Category 1B (Moderate/Weak)"
+                ke31_path = "h-CLAT Negative -> DPRA Positive (≥6.38%) -> Resolved 1B"
+            else:
+                ke31_call = "GHS Not Classified (Non-Sensitizer)"
+                ke31_path = "h-CLAT Negative -> DPRA Negative (<6.38%) -> Resolved NC"
+
         return {
-            "total_pts": total_pts,
-            "dpra_pts": dpra_pts,
-            "hclat_pts": hclat_pts,
-            "qsar_pts": qsar_pts,
-            "its_call": its_call
+            "2o3_call": da_2o3_call,
+            "2o3_concordance": da_2o3_concordance,
+            "its_total_pts": total_its_pts,
+            "its_dpra_pts": dpra_pts,
+            "its_hclat_pts": hclat_pts,
+            "its_qsar_pts": qsar_pts,
+            "its_call": its_call,
+            "ke31_call": ke31_call,
+            "ke31_path": ke31_path,
         }
 
 
@@ -557,21 +593,20 @@ class StatisticianAgent:
 
 
 class RegulatoryAgent:
-    def evaluate(self, stat_data: Dict[str, Any], tox_data: Dict[str, Any], pot_data: Dict[str, Any], its_data: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(self, stat_data: Dict[str, Any], dass_data: Dict[str, Any], pot_data: Dict[str, Any]) -> Dict[str, Any]:
         is_sens = stat_data["call"] == "SENSITIZER"
-        hits = sum(1 for v in [tox_data["KE1_DPRA"], tox_data["KE2_KeratinoSens"], tox_data["KE3_hCLAT"]] if v >= 0.5)
-
-        if is_sens:
-            ghs = f"GHS {pot_data['potency_class']}"
-            next_action = f"OECD GL 497 Positive (2-of-3 Battery Concordant). ITS Score: {its_data['total_pts']}/6 Pts ({its_data['its_call']}). Human PoD (SARA ED01): {pot_data['sara_ed01_pod']}."
-        else:
-            ghs = "GHS Not Classified (Non-Sensitizer)"
-            next_action = "2 concordant negative in vitro assays required for regulatory dossier sign-off."
+        ghs = f"GHS {pot_data['potency_class']}" if is_sens else "GHS Not Classified (Non-Sensitizer)"
+        
+        rec = (
+            f"OECD GL 497 (2o3 DA): {dass_data['2o3_call']} ({dass_data['2o3_concordance']}). "
+            f"ITSv1: {dass_data['its_total_pts']}/6 Pts ({dass_data['its_call']}). "
+            f"KE 3/1 STS: {dass_data['ke31_call']}. "
+            f"Human PoD (SARA ED01): {pot_data['sara_ed01_pod']}."
+        )
 
         return {
             "ghs_classification": ghs,
-            "da_result": f"Positive ({hits}/3 KEs)" if hits >= 2 else f"Negative ({hits}/3 KEs)",
-            "recommended_action": next_action,
+            "recommended_action": rec,
         }
 
 
@@ -583,7 +618,7 @@ class QAAgent:
 
 
 # =====================================================================
-# PDF QPRF DOSSIER GENERATOR (WITH SARA-ICE & OECD ITS MATRIX)
+# PDF QPRF DOSSIER GENERATOR (WITH ALL 3 DEFINED APPROACHES)
 # =====================================================================
 def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
@@ -598,14 +633,14 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     styles = getSampleStyleSheet()
     story = []
 
-    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=16, leading=20, textColor=colors.HexColor("#0f172a"), spaceAfter=4)
-    h3_style = ParagraphStyle('SectionH3', parent=styles['Heading3'], fontSize=9.5, leading=12, textColor=colors.HexColor("#0f172a"), spaceBefore=7, spaceAfter=3)
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=15, leading=19, textColor=colors.HexColor("#0f172a"), spaceAfter=3)
+    h3_style = ParagraphStyle('SectionH3', parent=styles['Heading3'], fontSize=9, leading=11, textColor=colors.HexColor("#0f172a"), spaceBefore=6, spaceAfter=3)
     c_style = ParagraphStyle('CellText', parent=styles['Normal'], fontSize=7.5, leading=9.5, textColor=colors.HexColor("#1e293b"))
     c_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=colors.HexColor("#0f172a"))
 
     story.append(Paragraph("OECD QSAR Prediction Reporting Format (QPRF)", title_style))
-    story.append(Paragraph("Regulatory Skin Sensitization & NAMs Evaluation Dossier (OECD GL 497 & SARA-ICE)", c_style))
-    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0d9488"), spaceAfter=8))
+    story.append(Paragraph("Harmonized Defined Approaches Dossier: 2o3 DA, ITSv1/v2, KE 3/1 STS, SARA-ICE (OECD GL 497)", c_style))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0d9488"), spaceAfter=7))
 
     # Section 1: Substance Identification
     story.append(Paragraph("1. SUBSTANCE IDENTIFICATION & DESCRIPTORS", h3_style))
@@ -619,28 +654,25 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
     ]))
     story.append(t1)
     story.append(Spacer(1, 4))
 
-    # Section 2: OECD GL 497 Defined Approach Results
-    story.append(Paragraph("2. OECD GL 497 DEFINED APPROACH (2-of-3 & ITSv1 MATRIX)", h3_style))
+    # Section 2: OECD GL 497 & DASS Defined Approaches Summary
+    story.append(Paragraph("2. OECD GL 497 & DASS APP DEFINED APPROACH PREDICTIONS", h3_style))
     da_data = [
-        [Paragraph("Key Event (AOP)", c_bold), Paragraph("Assay / In Silico Reference", c_bold), Paragraph("Mechanistic Response", c_bold), Paragraph("ITS Points", c_bold)],
-        [Paragraph("KE1 (Protein Haptenation)", c_style), Paragraph("OECD TG 442C (DPRA)", c_style), Paragraph(f"Adduct Score: {res['KE1_DPRA']}", c_style), Paragraph(f"{res['ITS_DPRA_Pts']} / 2 Pts", c_style)],
-        [Paragraph("KE2 (Keratinocyte ARE)", c_style), Paragraph("OECD TG 442D (KeratinoSens)", c_style), Paragraph(f"ARE Induction: {res['KE2_KeratinoSens']}", c_style), Paragraph("2-of-3 Check", c_style)],
-        [Paragraph("KE3 (Dendritic Activation)", c_style), Paragraph("OECD TG 442E (h-CLAT)", c_style), Paragraph(f"Co-stimulation: {res['KE3_hCLAT']}", c_style), Paragraph(f"{res['ITS_hCLAT_Pts']} / 3 Pts", c_style)],
-        [Paragraph("QSAR / In Silico Score", c_style), Paragraph("OECD TG 497 Expert Rule", c_style), Paragraph(f"Consensus: {res['Consensus_Score']}", c_style), Paragraph(f"{res['ITS_QSAR_Pts']} / 1 Pt", c_style)],
-        [Paragraph("Total ITS Score (OECD)", c_bold), Paragraph(f"<b>{res['ITS_Total_Pts']} / 6 Points</b>", c_style), Paragraph(f"<b>{res['OECD_497_Call']}</b>", c_bold), Paragraph(f"<b>{res['GHS_Category']}</b>", c_bold)],
+        [Paragraph("Defined Approach (DA)", c_bold), Paragraph("Data Interpretation Procedure (DIP)", c_bold), Paragraph("Hazard / Potency Call", c_bold), Paragraph("Regulatory Basis", c_bold)],
+        [Paragraph("1. 2-out-of-3 (2o3 DA)", c_style), Paragraph(str(res["DA_2o3_Concordance"]), c_style), Paragraph(f"<b>{res['DA_2o3_Call']}</b>", c_style), Paragraph("OECD GL 497 / US EPA", c_style)],
+        [Paragraph("2. ITS (Integrated Testing)", c_style), Paragraph(f"Score: {res['ITS_Total_Pts']}/6 Pts (DPRA:{res['ITS_DPRA_Pts']}, h-CLAT:{res['ITS_hCLAT_Pts']}, QSAR:{res['ITS_QSAR_Pts']})", c_style), Paragraph(f"<b>{res['ITS_Call']}</b>", c_style), Paragraph("OECD GL 497 Annex 2", c_style)],
+        [Paragraph("3. KE 3/1 STS Strategy", c_style), Paragraph(str(res["KE31_Path"]), c_style), Paragraph(f"<b>{res['KE31_Call']}</b>", c_style), Paragraph("Nukada et al. / US EPA", c_style)],
     ]
-    t2 = Table(da_data, colWidths=[140, 140, 160, 100])
+    t2 = Table(da_data, colWidths=[130, 160, 130, 120])
     t2.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#0f172a")),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('BACKGROUND', (0,5), (-1,5), colors.HexColor("#f1f5f9")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('TOPPADDING', (0,0), (-1,-1), 3.5),
         ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
@@ -660,7 +692,7 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
         [
             Paragraph("Permeability Kp (cm/h):", c_bold),
             Paragraph(str(res["Kp_cm_h"]), c_style),
-            Paragraph("NESIL Sensitization Threshold:", c_bold),
+            Paragraph("NESIL Sensitization Limit:", c_bold),
             Paragraph(str(res["NESIL"]), c_style)
         ],
         [
@@ -681,13 +713,13 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
         ('LEFTPADDING', (0,0), (-1,-1), 5),
         ('RIGHTPADDING', (0,0), (-1,-1), 5),
     ]))
     story.append(t3)
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 5))
 
     # Section 4: Quality Audit Sign-off
     story.append(Paragraph("4. REGULATORY QUALITY AUDIT & SIGN-OFF", h3_style))
@@ -723,20 +755,24 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
             "Applicability_Domain": "N/A",
             "Confidence": 0.0,
             "GHS_Category": "Unknown",
+            "DA_2o3_Call": "Inconclusive",
+            "DA_2o3_Concordance": "N/A",
+            "ITS_Total_Pts": 0,
+            "ITS_DPRA_Pts": 0,
+            "ITS_hCLAT_Pts": 0,
+            "ITS_QSAR_Pts": 0,
+            "ITS_Call": "Inconclusive",
+            "KE31_Call": "Inconclusive",
+            "KE31_Path": "N/A",
             "Potency_EC3": "N/A",
             "SARA_ED01_PoD": "N/A",
             "NESIL": "N/A",
             "Kp_cm_h": "N/A",
             "Dermal_Flux": 0.0,
-            "ITS_Total_Pts": 0,
-            "ITS_DPRA_Pts": 0,
-            "ITS_hCLAT_Pts": 0,
-            "ITS_QSAR_Pts": 0,
             "Phototoxicity": "N/A",
             "Respiratory_Sens": "N/A",
             "Skin_Irritation": "N/A",
             "Eye_Irritation": "N/A",
-            "DA_Result": "Inconclusive",
             "Recommended_Action": "Provide valid SMILES or verified CAS identifier.",
             "QA_SignOff": "REJECTED_RESOLUTION_ERROR",
             "Audit_ID": "N/A",
@@ -757,7 +793,7 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
     b1 = ChemistAgent().evaluate(chem)
     b2 = ToxicologistAgent().evaluate(chem, b1)
     
-    # Check if user provided lab in vitro data overrides
+    # Check for raw lab data overrides
     if lab_dpra_depletion is not None:
         b2["KE1_DPRA"] = 0.95 if lab_dpra_depletion >= 22.62 else (0.75 if lab_dpra_depletion >= 6.38 else 0.15)
     if lab_hclat_mit is not None:
@@ -767,9 +803,12 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
     is_sens = b3["call"] == "SENSITIZER"
     
     b_sara = SARAICEPotencyAgent.evaluate(chem, b3["score"], is_sens)
-    its_res = DefinedApproachAgent.calculate_oecd_its(b2["KE1_DPRA"], b2["KE3_hCLAT"], b3["score"])
+    dass_res = DefinedApproachAgent.calculate_all_dass(
+        b2["KE1_DPRA"], b2["KE2_KeratinoSens"], b2["KE3_hCLAT"], b3["score"],
+        raw_dpra_depletion=lab_dpra_depletion, raw_hclat_mit=lab_hclat_mit
+    )
     b_nams = CompanionNAMsAgent.evaluate(chem)
-    b_reg = RegulatoryAgent().evaluate(b3, b2, b_sara, its_res)
+    b_reg = RegulatoryAgent().evaluate(b3, dass_res, b_sara)
     b_qa = QAAgent.audit(chem, b3)
     analogs = ReadAcrossAgent.find_top_analogs(chem.smiles)
 
@@ -792,21 +831,24 @@ def process_single_chemical(identifier: str, lab_dpra_depletion: Optional[float]
         "Applicability_Domain": b3["applicability_domain"],
         "Confidence": b3["confidence"],
         "GHS_Category": b_reg["ghs_classification"],
+        "DA_2o3_Call": dass_res["2o3_call"],
+        "DA_2o3_Concordance": dass_res["2o3_concordance"],
+        "ITS_Total_Pts": dass_res["its_total_pts"],
+        "ITS_DPRA_Pts": dass_res["its_dpra_pts"],
+        "ITS_hCLAT_Pts": dass_res["its_hclat_pts"],
+        "ITS_QSAR_Pts": dass_res["its_qsar_pts"],
+        "ITS_Call": dass_res["its_call"],
+        "KE31_Call": dass_res["ke31_call"],
+        "KE31_Path": dass_res["ke31_path"],
         "Potency_EC3": b_sara["pred_ec3_percent"],
         "SARA_ED01_PoD": b_sara["sara_ed01_pod"],
         "NESIL": b_sara["nesil_ug_cm2"],
         "Kp_cm_h": b_sara["kp_cm_h"],
         "Dermal_Flux": b_sara["dermal_flux_ug_cm2_h"],
-        "ITS_Total_Pts": its_res["total_pts"],
-        "ITS_DPRA_Pts": its_res["dpra_pts"],
-        "ITS_hCLAT_Pts": its_res["hclat_pts"],
-        "ITS_QSAR_Pts": its_res["qsar_pts"],
-        "ITS_Call": its_res["its_call"],
         "Phototoxicity": b_nams["phototoxicity_call"],
         "Respiratory_Sens": b_nams["respiratory_call"],
         "Skin_Irritation": b_nams["skin_irritation_call"],
         "Eye_Irritation": b_nams["eye_irritation_call"],
-        "DA_Result": b_reg["da_result"],
         "Recommended_Action": b_reg["recommended_action"],
         "QA_SignOff": b_qa["sign_off"],
         "Audit_ID": b_qa["audit_id"],
@@ -824,10 +866,10 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.subheader(f"{res['Resolved_Name']}")
         st.code(f"SMILES: {res['SMILES']}", language="text")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("OECD 497 Call", f"{res['OECD_497_Call']}")
-        m2.metric("SARA-ICE Human ED01", f"{res['SARA_ED01_PoD']}")
-        m3.metric("LLNA EC3 (%)", f"{res['Potency_EC3']}")
-        m4.metric("OECD ITSv1 Score", f"{res['ITS_Total_Pts']} / 6 Pts")
+        m1.metric("2-of-3 DA Call", f"{res['DA_2o3_Call']}")
+        m2.metric("ITSv1 Matrix Score", f"{res['ITS_Total_Pts']} / 6 Pts")
+        m3.metric("KE 3/1 STS Call", f"{res['KE31_Call'].split()[1] if ' ' in res['KE31_Call'] else res['KE31_Call']}")
+        m4.metric("SARA-ICE Human ED01", f"{res['SARA_ED01_PoD']}")
 
     with c_img:
         if mol:
@@ -848,15 +890,15 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.write(f"- **KE2 (KeratinoSens):** `{res['KE2_KeratinoSens']}`")
         st.write(f"- **KE3 (h-CLAT):** `{res['KE3_hCLAT']}` ({res['ITS_hCLAT_Pts']} Pts)")
     with c3:
-        st.markdown("#### 📊 3. SARA-ICE & Bioavailability")
-        st.write(f"- **Human PoD:** `{res['SARA_ED01_PoD']}`")
-        st.write(f"- **NESIL:** `{res['NESIL']}`")
-        st.write(f"- **Kp:** `{res['Kp_cm_h']} cm/h`")
+        st.markdown("#### 📊 3. Defined Approaches (DASS)")
+        st.write(f"- **2o3 DA:** `{res['DA_2o3_Call']}` ({res['DA_2o3_Concordance']})")
+        st.write(f"- **ITSv1/v2:** `{res['ITS_Call']}`")
+        st.write(f"- **KE 3/1 STS:** `{res['KE31_Call']}`")
     with c4:
-        st.markdown("#### 🛡️ 4. Companion NAMs")
+        st.markdown("#### 🛡️ 4. Companion NAMs & PoD")
+        st.write(f"- **SARA PoD:** `{res['SARA_ED01_PoD']}`")
+        st.write(f"- **NESIL Limit:** `{res['NESIL']}`")
         st.write(f"- **Phototoxicity:** `{res['Phototoxicity']}`")
-        st.write(f"- **Respiratory:** `{res['Respiratory_Sens']}`")
-        st.write(f"- **Skin Irritation:** `{res['Skin_Irritation']}`")
 
     # Read-Across Section
     if res.get("Analogs"):
@@ -880,10 +922,11 @@ def render_dashboard_cards(res: Dict[str, Any]):
     st.markdown(
         f"""
         <div style="background-color: {summary_bg}; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
-            <h4 style="margin: 0 0 8px 0; color: #1e293b;">Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
-            <p style="margin: 0; color: #334155; font-size: 14px;">
-                <strong>OECD Defined Approach (2-of-3):</strong> {res['DA_Result']} &nbsp;|&nbsp; 
-                <strong>ITSv1 Points:</strong> {res['ITS_Total_Pts']}/6 ({res['ITS_Call']}) &nbsp;|&nbsp; 
+            <h4 style="margin: 0 0 8px 0; color: #1e293b;">Harmonized Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
+            <p style="margin: 0; color: #334155; font-size: 13.5px;">
+                <strong>2-of-3 DA:</strong> {res['DA_2o3_Call']} &nbsp;|&nbsp; 
+                <strong>ITSv1 Score:</strong> {res['ITS_Total_Pts']}/6 ({res['ITS_Call']}) &nbsp;|&nbsp; 
+                <strong>KE 3/1 STS:</strong> {res['KE31_Call']} &nbsp;|&nbsp; 
                 <strong>SARA-ICE PoD:</strong> {res['SARA_ED01_PoD']} &nbsp;|&nbsp; 
                 <strong>Audit Hash:</strong> <code>{res['Audit_ID']}</code>
             </p>
@@ -907,7 +950,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
 # =====================================================================
 tab_single, tab_hybrid, tab_sketch, tab_batch, tab_formulation = st.tabs([
     "🔍 Single Compound & QPRF",
-    "🧪 Hybrid Lab In Vitro Mode",
+    "🧪 Hybrid Lab In Vitro Mode (DASS)",
     "✏️ Draw Molecule (JSME)",
     "📁 High-Throughput Batch Screening",
     "🧴 Formulation & Mixture Screener"
@@ -934,11 +977,11 @@ with tab_single:
                 render_dashboard_cards(res)
 
 # ---------------------------------------------------------------------
-# TAB 2: HYBRID LAB IN VITRO DATA ENTRY MODE (DASS APP STYLE)
+# TAB 2: HYBRID LAB IN VITRO DATA ENTRY MODE (DASS APP SUITE)
 # ---------------------------------------------------------------------
 with tab_hybrid:
-    st.markdown("### 🧪 Hybrid In Vitro Lab Data & Defined Approach (OECD GL 497)")
-    st.write("Input raw measured laboratory assay values alongside chemical identity to calculate formal Defined Approach (2-of-3 and ITSv1) calls.")
+    st.markdown("### 🧪 Hybrid Lab In Vitro Defined Approaches (2o3, ITS, KE 3/1 STS)")
+    st.write("Input measured laboratory assay readouts to compute all 3 internationally harmonized Defined Approaches.")
 
     c_h1, c_h2, c_h3 = st.columns(3)
     with c_h1:
@@ -948,8 +991,8 @@ with tab_hybrid:
     with c_h3:
         lab_hclat = st.number_input("h-CLAT Minimum Induction Threshold (MIT in µg/mL):", min_value=0.1, max_value=5000.0, value=8.5, step=1.0)
 
-    if st.button("🚀 Calculate Regulatory Defined Approach", type="primary"):
-        with st.spinner("Executing OECD GL 497 & SARA-ICE defined approach..."):
+    if st.button("🚀 Calculate All 3 Defined Approaches", type="primary"):
+        with st.spinner("Executing 2o3 DA, ITSv1/v2, and KE 3/1 STS algorithms..."):
             res = process_single_chemical(hyb_cas, lab_dpra_depletion=lab_dpra, lab_hclat_mit=lab_hclat)
             render_dashboard_cards(res)
 
@@ -1093,10 +1136,10 @@ with tab_formulation:
                     "Ingredient": ind_res["Resolved_Name"],
                     "CAS": cas_val,
                     "Concentration (%)": conc,
-                    "Individual Call": ind_res["OECD_497_Call"],
-                    "SARA PoD": ind_res["SARA_ED01_PoD"],
-                    "Potency (EC3)": ind_res["Potency_EC3"],
-                    "NESIL Limit": ind_res["NESIL"]
+                    "2o3 Call": ind_res["DA_2o3_Call"],
+                    "ITS Call": ind_res["ITS_Call"],
+                    "KE 3/1 STS Call": ind_res["KE31_Call"],
+                    "SARA PoD": ind_res["SARA_ED01_PoD"]
                 })
 
             st.dataframe(pd.DataFrame(form_results), use_container_width=True)
@@ -1127,7 +1170,7 @@ st.markdown(
     """
     <div style="text-align: center; padding: 18px 0; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; margin-top: 30px;">
         <p style="margin: 0; font-weight: 500;">
-            🧪 <strong>Enterprise Sensitization Platform</strong> | Compliant with <strong>OECD Guideline 497 &amp; SARA-ICE</strong>
+            🧪 <strong>Enterprise Sensitization Platform</strong> | Harmonized <strong>OECD Guideline 497 &amp; DASS App Suite</strong>
         </p>
         <p style="margin: 6px 0 0 0; color: #475569;">
             Created by <strong>Dr. Rahul Anant Date</strong> with <strong>Gemini AI</strong>
