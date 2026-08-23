@@ -46,7 +46,9 @@ with st.sidebar:
         - **Bot 4:** Toxicologist (AOP KEs 1–3)
         - **Bot 5:** SARA-ICE & Potency Agent
         - **Bot 6:** DASS Defined Approach Suite
-        - **Bot 7:** Read-Across & QA Auditor
+        - **Bot 7:** Read-Across & Analog Matcher
+        - **Bot 8:** Companion NAMs Screener
+        - **Bot 9:** Regulatory QA Auditor (SHA-256)
         """
     )
     st.markdown("---")
@@ -328,12 +330,6 @@ class ChemistAgent:
 # AGENT 2: EXPLICIT DYNAMIC SKIN METABOLISM SIMULATOR (PHASE I/II)
 # =====================================================================
 class SkinMetabolismAgent:
-    """Simulates cutaneous phase I & II bioactivation pathways using RDKit SMIRKS transforms:
-    - Primary amine oxidation -> Nitroso / Quinonediimines (PPD axis)
-    - Alkene epoxidation -> Reactive Epoxides
-    - Aromatic & aliphatic hydroxylation (Catechols / Hydroquinones)
-    - Thioether sulfoxidation
-    """
     METABOLIC_SMIRKS = {
         "Cutaneous_Amine_Oxidation": "[c:1][NX3H2:2]>>[c:1][N:2]=O",
         "Alkene_Epoxidation": "[C:1]=[C:2]>>[C:1]1O[C:2]1",
@@ -391,10 +387,6 @@ class SkinMetabolismAgent:
 # AGENT 3: DEEP GRAPH NEURAL NETWORK (GNN / MPNN SIMULATOR)
 # =====================================================================
 class GraphNeuralNetworkAgent:
-    """3-Layer Spatial Graph Convolutional Message Passing Network (MPNN)
-    Operates on full atomic features and normalized adjacency matrix A_norm = D^-1/2 (A + I) D^-1/2.
-    Computes GNN Sensitization Probability and Conformal Prediction p-value.
-    """
     @staticmethod
     def predict_gnn(chem: ChemicalProfile) -> Dict[str, Any]:
         if not chem.mol or chem.mol.GetNumAtoms() == 0:
@@ -636,7 +628,38 @@ class DefinedApproachAgent:
 
 
 # =====================================================================
-# AGENT 7: COMPANION NAMS (PHOTO / RESPIRATORY / IRRITATION)
+# AGENT 7: READ-ACROSS & TANIMOTO ANALOG MATCHER
+# =====================================================================
+class ReadAcrossAgent:
+    @staticmethod
+    def find_top_analogs(target_smiles: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        target_mol = Chem.MolFromSmiles(target_smiles)
+        if not target_mol:
+            return []
+
+        target_fp = AllChem.GetMorganFingerprintAsBitVect(target_mol, 2, nBits=1024)
+        matches = []
+
+        for cas, data in UniversalChemicalResolver.STATIC_REGISTRY.items():
+            ref_mol = Chem.MolFromSmiles(data["smiles"])
+            if ref_mol:
+                ref_fp = AllChem.GetMorganFingerprintAsBitVect(ref_mol, 2, nBits=1024)
+                similarity = DataStructs.TanimotoSimilarity(target_fp, ref_fp)
+                if 0.05 < similarity < 0.999:
+                    matches.append({
+                        "cas": cas,
+                        "name": data["name"],
+                        "similarity": round(similarity, 3),
+                        "exp_potency": data.get("exp_potency", "Unknown"),
+                        "exp_ec3": f"{data.get('exp_ec3')}%" if data.get('exp_ec3') else "Negative",
+                    })
+
+        matches.sort(key=lambda x: x["similarity"], reverse=True)
+        return matches[:top_k]
+
+
+# =====================================================================
+# AGENT 8: COMPANION NAMS (PHOTO / RESPIRATORY / IRRITATION)
 # =====================================================================
 class CompanionNAMsAgent:
     @staticmethod
@@ -668,11 +691,10 @@ class CompanionNAMsAgent:
 
 
 # =====================================================================
-# AGENT 8 & QA: REGULATORY CONSENSUS & AUDITOR
+# AGENT 9 & QA: REGULATORY CONSENSUS & AUDITOR
 # =====================================================================
 class StatisticianAgent:
     def evaluate(self, chem: ChemicalProfile, tox_data: Dict[str, Any], gnn_data: Dict[str, Any]) -> Dict[str, Any]:
-        # Weighted hybrid integration: 80% AOP/Defined Approach + 20% Graph Neural Network
         aop_score = (0.5 * tox_data["KE1_DPRA"]) + (0.25 * tox_data["KE2_KeratinoSens"]) + (0.25 * tox_data["KE3_hCLAT"])
         final_score = (0.80 * aop_score) + (0.20 * gnn_data["gnn_score"])
         
@@ -722,7 +744,7 @@ class QAAgent:
 
 
 # =====================================================================
-# PDF QPRF DOSSIER GENERATOR (WITH GNN & METABOLISM SECTIONS)
+# PDF QPRF DOSSIER GENERATOR
 # =====================================================================
 def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
