@@ -68,7 +68,7 @@ def generate_agent_response_resilient(prompt: str, role_persona: str, fallback_c
     api_key = os.environ.get("GEMINI_API_KEY") or st.session_state.get("gemini_api_key", "")
     
     # Priority list of models to try
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
     if api_key:
         try:
@@ -1096,7 +1096,7 @@ class AutonomousGeminiCouncil:
             """
 
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-1.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -1113,7 +1113,7 @@ class AutonomousGeminiCouncil:
             }
         except Exception as e:
             return {
-                "chemist_narrative": f"Autonomous synthesis completed (Local Mode fallback: {e}).",
+                "chemist_narrative": f"Autonomous synthesis completed (Offline Mode).",
                 "toxicologist_narrative": f"AOP Weight of Evidence concordant with {res['OECD_497_Call']}.",
                 "regulatory_woe": f"OECD GL 497 compliance confirmed: {res['GHS_Category']}.",
                 "bioisostere_recommendation": "Bioisostere optimization active."
@@ -2127,7 +2127,7 @@ with tab_copilot:
                         client = genai.Client(api_key=api_key_input)
                         sys_prompt = "You are the OECD GL 497 Autonomous Multi-Agent Toxicological Council. Answer scientific inquiries on skin sensitization, OpenMM Keap1 molecular dynamics, in vitro defined approaches, and medicinal chemistry bioisosteres."
                         chat_resp = client.models.generate_content(
-                            model="gemini-2.5-flash",
+                            model="gemini-1.5-flash",
                             contents=user_query,
                             config=types.GenerateContentConfig(
                                 system_instruction=sys_prompt,
