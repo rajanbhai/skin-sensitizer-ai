@@ -1,8 +1,11 @@
 
+
 def generate_agent_response(role_name, prompt, ctx):
     """
-    Generates intelligent multi-agent synthesis using available Gemini models,
-    with an immediate high-fidelity deterministic scientific fallback on quota exhaustion.
+    Prioritized Multi-Tier Cascade:
+    1. Tries `gemini-2.5-flash` first (20 free requests/day).
+    2. Falls back to `gemini-2.0-flash` / `gemini-1.5-flash` (1,500 free requests/day).
+    3. Falls back smoothly to rich deterministic mechanistic text if all quotas are exhausted.
     """
     api_key = os.environ.get("GEMINI_API_KEY") or st.session_state.get("gemini_api_key", "")
     
@@ -17,25 +20,45 @@ def generate_agent_response(role_name, prompt, ctx):
         try:
             import google.generativeai as genai
             genai.configure(api_key=api_key)
-            # Use models with 1500 requests/day limit instead of the 20/day limit on 2.5-flash
-            for m_name in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]:
+            
+            # Prioritized model waterfall
+            model_cascade = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+            
+            for m_name in model_cascade:
                 try:
                     m = genai.GenerativeModel(m_name)
-                    res = m.generate_content(f"System: You are an expert {role_name}.\n\nContext:\nChemical: {cmp_name}\nAlerts: {alerts}\nDelta G: {dg} kcal/mol\nITS: {its_pts}/6\nGHS: {ghs_call}\nHuman ED01: {ed01} ug/cm2\n\nPrompt: {prompt}")
-                    if res and res.text and len(res.text.strip()) > 10:
+                    res = m.generate_content(
+                        f"System: You are an expert {role_name}.
+
+"
+                        f"Context:
+Chemical: {cmp_name}
+Alerts: {alerts}
+"
+                        f"Delta G: {dg} kcal/mol
+ITS Points: {its_pts}/6
+"
+                        f"UN GHS: {ghs_call}
+Human ED01: {ed01} ug/cm2
+
+"
+                        f"Prompt: {prompt}"
+                    )
+                    if res and res.text and len(res.text.strip()) > 15:
                         return res.text.strip()
                 except Exception:
+                    # If 429 quota exhausted or model unavailable, silently try next model in cascade
                     continue
         except Exception:
             pass
 
-    # High-quality deterministic scientific synthesis (Zero API dependency)
+    # Deterministic scientific synthesis fallback (zero network/API dependency)
     if "Chemist" in role_name:
         return f"""**Mechanistic Chemical Analysis:**
 * **Target Profile:** {cmp_name}
 * **Electrophilic Alerts:** {alerts}
 * **Haptenation Mechanics:** Exhibits reactive potential corresponding to an OpenMM covalent binding free energy of **{dg:.2f} kcal/mol**.
-* **Adduct Trajectory:** The identified reactive centers facilitate covalent binding to cutaneous soft/hard nucleophiles (Cysteine -SH and Lysine -NH2), driving the Molecular Initiating Event (KE1)."""
+* **Adduct Trajectory:** The identified reactive centers facilitate covalent binding to cutaneous nucleophiles (Cysteine -SH and Lysine -NH2), driving the Molecular Initiating Event (KE1)."""
 
     elif "Toxicologist" in role_name:
         return f"""**AOP Toxicological Synthesis:**
@@ -57,8 +80,6 @@ def generate_agent_response(role_name, prompt, ctx):
 * **Hazard Resolution:** Substance earns **{its_pts} ITS points**, warranting a classification of **{ghs_call}** under UN GHS standards.
 * **Submission Ready:** Suitable for direct incorporation into ECHA REACH Annex XI and US EPA TSCA dossiers with verified biophysical anchoring."""
 
-
-import time
 
 def generate_agent_response_resilient(prompt: str, role_persona: str, fallback_context: dict = None) -> str:
     """
