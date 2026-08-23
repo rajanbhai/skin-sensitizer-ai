@@ -1,46 +1,52 @@
+
+def run_unified_gemini(agent_role, prompt_content):
+    import os, streamlit as st
+    api_key = """AQ.Ab8RN6IOcGMDzLa_J-5gepTkAwLTJRSxBz8FBNGOsPflLuA9Lg""" or os.environ.get("GEMINI_API_KEY", "") or st.session_state.get("gemini_api_key", "")
+    if not api_key:
+        return "Autonomous synthesis completed (Offline Mode - Missing Key)."
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        for m_name in ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-2.5-flash"]:
+            try:
+                model = genai.GenerativeModel(m_name)
+                resp = model.generate_content(f"You are the {agent_role} in an OECD expert toxicological council. Context and prompt: {prompt_content}")
+                if resp and resp.text:
+                    return resp.text.strip()
+            except Exception as e:
+                print(f"[{agent_role} via {m_name}] Error: {e}")
+                continue
+    except Exception as ge:
+        print(f"Global GenAI Error: {ge}")
+    return "Autonomous synthesis completed (Offline Mode)."
+
 import os
 import streamlit as st
 
-def generate_agent_response(role_name, prompt, ctx):
-    """
-    Multi-tier cascade:
-    1. gemini-2.5-flash
-    2. gemini-2.0-flash / gemini-1.5-flash
-    3. Deterministic offline fallback
-    """
-    api_key = os.environ.get("GEMINI_API_KEY") or st.session_state.get("gemini_api_key", "")
-    cmp_name = ctx.get("name", "Target Chemical") if ctx else "Target Chemical"
-    alerts = ctx.get("alerts", "None detected") if ctx else "None detected"
-    dg = float(ctx.get("dg", -5.5)) if ctx else -5.5
-    its_pts = int(ctx.get("its_pts", 0)) if ctx else 0
-    ghs_call = str(ctx.get("ghs_call", "Not Classified")) if ctx else "Not Classified"
-    ed01 = float(ctx.get("ed01", 1000.0)) if ctx else 1000.0
+if os.path.exists(".env"):
+    try:
+        with open(".env", "r") as _ef:
+            for _line in _ef:
+                if _line.strip().startswith("GEMINI_API_KEY="):
+                    _k = _line.strip().split("=", 1)[1].replace(chr(34), "").replace(chr(39), "").strip()
+                    os.environ["GEMINI_API_KEY"] = _k
+    except Exception:
+        pass
 
-    if api_key:
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            for m_name in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
-                try:
-                    m = genai.GenerativeModel(m_name)
-                    agent_prompt = f"System: You are an expert {role_name}. Context: Chemical={cmp_name}, Alerts={alerts}, DeltaG={dg} kcal/mol, ITS={its_pts}/6, GHS={ghs_call}, ED01={ed01} ug/cm2. Prompt: {prompt}"
-                    res = m.generate_content(agent_prompt)
-                    if res and res.text and len(res.text.strip()) > 15:
-                        return res.text.strip()
-                except Exception:
-                    continue
-        except Exception:
-            pass
+def run_gemini_agent(*args, **kwargs):
+    role = kwargs.get('role', 'Chemist') if kwargs else (args[1] if len(args) > 1 else 'Chemist')
+    prompt = args[0] if len(args) > 0 else kwargs.get('prompt', '')
+    return run_unified_gemini(role, prompt)
 
-    if "Chemist" in role_name:
-        return f"**Mechanistic Chemical Analysis:**\n* **Target Profile:** {cmp_name}\n* **Electrophilic Alerts:** {alerts}\n* **Haptenation Mechanics:** OpenMM covalent binding free energy is **{dg:.2f} kcal/mol**.\n* **Adduct Trajectory:** Covalent binding to cutaneous nucleophiles (Cys -SH / Lys -NH2) drives KE1."
-    elif "Toxicologist" in role_name:
-        return f"**AOP Toxicological Synthesis:**\n* **AOP 40 Pathway:** Evaluated KE1 (Protein Binding), KE2 (ARE-Nrf2), and KE3 (Dendritic Cell Activation).\n* **Receptor Tethering:** Keap1 stabilization (ΔG = {dg:.2f} kcal/mol) drives Nrf2 translocation.\n* **Defined Approach Verdict:** Accumulates **{its_pts}/6 ITS points**, classifying as **{ghs_call}**."
-    elif "Medicinal" in role_name or "MedChem" in role_name:
-        return f"**Safer Bioisostere & Design Recommendations:**\n* **Toxicophore Target:** {alerts}\n* **Modifications:** 1. Introduce steric shielding at alpha positions. 2. Attenuate electron-withdrawing groups to widen HOMO-LUMO gap. 3. Replace reactive centers with bioisosteric amides to target ED01 > {ed01:.1f} ug/cm²."
-    else:
-        return f"**Regulatory Weight-of-Evidence (WoE) Statement:**\n* **OECD GL 497 Compliance:** Validated under 2o3 DA and ITS matrices.\n* **Hazard Resolution:** Substance earns **{its_pts} ITS points**, warranting **{ghs_call}** under UN GHS.\n* **Dossier Ready:** Compliant with REACH Annex XI and US EPA TSCA standards."
+def query_gemini(*args, **kwargs):
+    role = kwargs.get('role', 'Chemist') if kwargs else (args[1] if len(args) > 1 else 'Chemist')
+    prompt = args[0] if len(args) > 0 else kwargs.get('prompt', '')
+    return run_unified_gemini(role, prompt)
 
+def generate_agent_response(*args, **kwargs):
+    role = kwargs.get('role', 'Chemist') if kwargs else (args[1] if len(args) > 1 else 'Chemist')
+    prompt = args[0] if len(args) > 0 else kwargs.get('prompt', '')
+    return run_unified_gemini(role, prompt)
 
 def generate_agent_response_resilient(prompt: str, role_persona: str, fallback_context: dict = None) -> str:
     """
@@ -50,7 +56,7 @@ def generate_agent_response_resilient(prompt: str, role_persona: str, fallback_c
     api_key = os.environ.get("GEMINI_API_KEY") or st.session_state.get("gemini_api_key", "")
     
     # Priority list of models to try
-    models_to_try = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    models_to_try = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-2.5-flash"]
     
     if api_key:
         try:
@@ -1078,7 +1084,7 @@ class AutonomousGeminiCouncil:
             """
 
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-3.5-flash-lite",
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
@@ -2109,7 +2115,7 @@ with tab_copilot:
                         client = genai.Client(api_key=api_key_input)
                         sys_prompt = "You are the OECD GL 497 Autonomous Multi-Agent Toxicological Council. Answer scientific inquiries on skin sensitization, OpenMM Keap1 molecular dynamics, in vitro defined approaches, and medicinal chemistry bioisosteres."
                         chat_resp = client.models.generate_content(
-                            model="gemini-1.5-flash",
+                            model="gemini-3.5-flash-lite",
                             contents=user_query,
                             config=types.GenerateContentConfig(
                                 system_instruction=sys_prompt,
