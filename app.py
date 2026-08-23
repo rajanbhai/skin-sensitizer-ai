@@ -69,21 +69,26 @@ with st.sidebar:
         st.info("ℹ️ Running in Local Deterministic Mode. Enter a free Gemini API Key for autonomous LLM agent reasoning.")
 
     st.markdown("---")
-    st.markdown("### 🔬 Multi-Agent Architecture")
+    st.markdown("### ⚙️ 8 Computational Engines")
     st.markdown(
         """
-        - **1. Chemist Bot:** Structure & Bioisosteres
-        - **2. 2D Heatmap Bot:** Atom Probability Contours
-        - **3. MD Dynamics Bot:** OpenMM Keap1-Cys151 Trajectory
-        - **4. Transformer Bot:** ChemBERTa Embeddings
-        - **5. GNN Bot:** Spatial Graph Convolutions
-        - **6. Bioactivation Bot:** Cutaneous Phase I/II
-        - **7. UVCB Deconvolution:** GC-MS Peak Parser
-        - **8. Toxicologist Bot:** AOP Weight of Evidence
-        - **9. Clinical Bot:** HRIPT / HMT Verification
-        - **10. SARA-ICE Bot:** Human $\\text{ED}_{01}$ PoD
-        - **11. Regulatory Bot:** OECD GL 497 & Dual PDF
-        - **12. QA Auditor:** SHA-256 Audit Seal
+        - **1. Structure & Haptenation:** SMARTS Rules
+        - **2. 2D Attribution Heatmap:** Atom Contours
+        - **3. OpenMM MD Dynamics:** Keap1 $\\Delta G_{\\text{MM/PBSA}}$
+        - **4. ChemBERTa Transformer:** BPE Embeddings
+        - **5. Graph Neural Network:** Spatial MPNN
+        - **6. Cutaneous Bioactivation:** Phase I/II SMIRKS
+        - **7. Defined Approaches:** OECD GL 497 Logic
+        - **8. QA & Audit Trail:** SHA-256 Integrity
+        """
+    )
+    st.markdown("### 🤖 4 Autonomous LLM Bots")
+    st.markdown(
+        """
+        - **1. Chemist Bot:** Reaction Mechanisms
+        - **2. Toxicologist Bot:** AOP Synthesis
+        - **3. MedChem Bot:** Bioisostere Design
+        - **4. Regulatory Bot:** Weight of Evidence (WoE)
         """
     )
     st.markdown("---")
