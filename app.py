@@ -1021,7 +1021,7 @@ def process_single_chemical(
 
 
 # =====================================================================
-# UI RENDERING: DASHBOARD CARDS
+# UI RENDERING: DASHBOARD CARDS (WITH ALIGNED CLEAN GNN CARD)
 # =====================================================================
 def render_dashboard_cards(res: Dict[str, Any]):
     mol = Chem.MolFromSmiles(res["SMILES"])
@@ -1031,9 +1031,15 @@ def render_dashboard_cards(res: Dict[str, Any]):
         st.code(f"SMILES: {res['SMILES']}", language="text")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("OECD 497 Call", f"{res['OECD_497_Call']}")
-        m2.metric("GNN Score", f"{res['GNN_Score']} (p={res['GNN_p_value']})")
+        # Format GNN Score cleanly with delta sub-label to prevent long float wrapping
+        m2.metric(
+            label="GNN Score",
+            value=f"{res['GNN_Score']:.2f}",
+            delta=f"p = {res['GNN_p_value']:.2f}",
+            delta_color="off"
+        )
         m3.metric("Skin Metabolism", f"{res['Metabolism_Risk'].split()[0]}")
-        m4.metric("SARA Human ED01", f"{res['SARA_ED01_PoD']}")
+        m4.metric("SARA-ICE ED01", f"{res['SARA_ED01_PoD']}")
 
     with c_img:
         if mol:
@@ -1046,8 +1052,8 @@ def render_dashboard_cards(res: Dict[str, Any]):
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         st.markdown("#### 🧠 1. Deep Learning (GNN)")
-        st.write(f"- **GNN Score:** `{res['GNN_Score']}`")
-        st.write(f"- **Conformal p-val:** `{res['GNN_p_value']}`")
+        st.write(f"- **GNN Score:** `{res['GNN_Score']:.2f}`")
+        st.write(f"- **Conformal p-val:** `{res['GNN_p_value']:.2f}`")
         st.write(f"- **Decision:** `{res['GNN_Verdict']}`")
     with c2:
         st.markdown("#### 🧬 2. Skin Bioactivation")
@@ -1092,7 +1098,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         <div style="background-color: {summary_bg}; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
             <h4 style="margin: 0 0 8px 0; color: #1e293b;">Harmonized Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
             <p style="margin: 0; color: #334155; font-size: 13.5px;">
-                <strong>GNN (MPNN) Probability:</strong> {res['GNN_Score']} (p={res['GNN_p_value']}) &nbsp;|&nbsp; 
+                <strong>GNN (MPNN) Score:</strong> {res['GNN_Score']:.2f} (p={res['GNN_p_value']:.2f}) &nbsp;|&nbsp; 
                 <strong>Skin Metabolism:</strong> {res['Metabolism_Risk']} &nbsp;|&nbsp; 
                 <strong>2-of-3 DA:</strong> {res['DA_2o3_Call']} &nbsp;|&nbsp; 
                 <strong>SARA-ICE PoD:</strong> {res['SARA_ED01_PoD']} &nbsp;|&nbsp; 
