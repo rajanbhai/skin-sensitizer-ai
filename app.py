@@ -1,3 +1,14 @@
+import os
+import warnings
+warnings.filterwarnings("ignore")
+
+# Silence RDKit C++ stderr spam
+try:
+    from rdkit import RDLogger
+    RDLogger.DisableLog("rdApp.*")
+except Exception:
+    pass
+
 # ==============================================================================
 # ENTERPRISE AUTONOMOUS MULTI-AGENT SKIN SENSITIZATION & NAMS AI PLATFORM
 # Version: 4.5.0-Enterprise (Clean Enterprise Header)
@@ -134,7 +145,7 @@ class UniversalChemicalResolver:
         "101-80-4": {"name": "4,4'-Oxydianiline", "smiles": "NC1=CC=C(OC2=CC=C(N)C=C2)C=C1", "cid": 7575, "exp_ec3": 1.8, "exp_potency": "Moderate"},
         "150-13-0": {"name": "4-Aminobenzoic acid (PABA)", "smiles": "NC1=CC=C(C=C1)C(=O)O", "cid": 978, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "122-57-6": {"name": "Benzylideneacetone", "smiles": "CC(=O)C=CC1=CC=CC=C1", "cid": 5318536, "exp_ec3": 1.4, "exp_potency": "Moderate"},
-        "35691-65-7": {"name": "Methyldibromo glutaronitrile (MDBGN)", "smiles": "Brc1c(Br)(C#N)CCC#N", "cid": 37213, "exp_ec3": 0.3, "exp_potency": "Strong"},
+        "35691-65-7": {"name": "Methyldibromo glutaronitrile (MDBGN)", "smiles": "BrC(Br)(C#N)CCC#N", "cid": 37213, "exp_ec3": 0.3, "exp_potency": "Strong"},
         "71-36-3": {"name": "1-Butanol", "smiles": "CCCCO", "cid": 263, "exp_ec3": None, "exp_potency": "Non-Sensitizer"},
         "104-54-1": {"name": "Cinnamyl alcohol", "smiles": "OCC=CC1=CC=CC=C1", "cid": 5315892, "exp_ec3": 8.5, "exp_potency": "Moderate/Weak"},
         "7440-02-0": {"name": "Nickel", "smiles": "[Ni]", "cid": 935, "exp_ec3": 0.5, "exp_potency": "Strong"},
