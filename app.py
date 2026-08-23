@@ -43,13 +43,13 @@ except ImportError:
 # STREAMLIT UI CONFIGURATION
 # =====================================================================
 st.set_page_config(
-    page_title="Enterprise Sensitization AI",
+    page_title="SensAOP Studio",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.title("🧪 Enterprise Sensitization AI")
+st.title("🧪 SensAOP Studio")
 st.caption(
     "Full-Spectrum Safety Platform: **OpenMM Keap1-Cys151 MD Trajectories (\\Delta G_{\\text{MM/PBSA}})**, **Automated UVCB Botanical Deconvolution**, **ChemBERTa Transformer Encodings**, **Gemini LLM Autonomous Agents**, and **OECD Guideline 497 Defined Approaches**."
 )
