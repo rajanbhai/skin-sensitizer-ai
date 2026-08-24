@@ -1251,17 +1251,31 @@ def render_hitl_panel(res: dict):
                 ],
                 key=f"hitl_choice_widget_{res.get('SMILES', 'default')}"
             )
-        with col_rat:
-            current_just = st.text_area(
-                "Toxicologist Regulatory Justification (Included in Audit Dossier):",
-                value=st.session_state.get(
-                    f"hitl_just_val_{res.get('SMILES', '')}",
-                    "Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits."
-                ),
-                key=f"hitl_just_widget_{res.get('SMILES', 'default')}"
-            )
+    with col_rat:
+        st.markdown("""
+        <div style="background: #fffbeb; border: 2.5px solid #d97706; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2), 0 2px 4px -1px rgba(217, 119, 6, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="color: #92400e; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    📝 Toxicologist Regulatory Justification
+                </span>
+                <span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;">
+                    ✍️ EDITABLE FIELD (AUDIT TRAIL)
+                </span>
+            </div>
+            <p style="color: #b45309; font-size: 0.82rem; margin: 4px 0 0 0; font-weight: 500;">
+                Click below to modify expert rationale printed in Section 5 of the PDF & XML dossiers:
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        hitl_just = st.text_area(
+            "Toxicologist Regulatory Justification",
+            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
+            key=f"hitl_user_just_{unique_widget_id}",
+            height=110,
+            label_visibility="collapsed",
+            help="Your rationale entered here will be embedded verbatim into the Executive AOP PDF, OECD QPRF Dossier, and ECHA IUCLID 6 export."
+        )
 
-        # Update dictionary & session state
         res["HITL_Override_Applied"] = True
         res["HITL_Final_Call"] = current_choice
         res["HITL_Justification"] = current_just
@@ -1987,100 +2001,7 @@ def process_single_chemical(
 # UI RENDERING: DASHBOARD CARDS & DUAL PDF DOWNLOADERS
 # =====================================================================
 def render_dashboard_cards(res: dict):
-    mol = Chem.MolFromSmiles(res["SMILES"])
-    c_info, c_img = st.columns([2, 1])
-    with c_info:
-        st.subheader(f"{res['Resolved_Name']}")
-        st.code(f"SMILES: {res['SMILES']}", language="text")
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("OECD 497 Call", f"{res['OECD_497_Call']}")
-        m2.metric(
-            label="GNN Score",
-            value=f"{res['GNN_Score']:.2f}",
-            delta=f"p = {res['GNN_p_value']:.2f}",
-            delta_color="off"
-        )
-        m3.metric("OpenMM MM/PBSA ΔG", f"{res['MD_MMPBSA_DeltaG']}")
-        m4.metric("SARA-ICE ED01", f"{res['SARA_ED01_PoD']}")
-
-    with c_img:
-        if res.get("Heatmap_PNG"):
-            st.image(res["Heatmap_PNG"], caption="2D Atom Attribution Heatmap (Red = Reactive)", width="stretch")
-        elif mol:
-            st.image(Draw.MolToImage(mol, size=(300, 180)), caption="2D Structure", width="stretch")
-        else:
-            st.info("Inorganic / Elemental Species")
-
-    st.markdown("---")
-    
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown("#### 🧠 1. Deep AI & Transformer")
-        st.write(f"- **ChemBERTa Score:** `{res['Transformer_Score']:.2f}`")
-        st.write(f"- **GNN (MPNN) Score:** `{res['GNN_Score']:.2f}`")
-        st.write(f"- **Conformal p-val:** `{res['GNN_p_value']:.2f}`")
-    with c2:
-        st.markdown("#### 🧬 2. OpenMM MD Dynamics")
-        st.write(f"- **MM/PBSA ΔG:** `{res['MD_MMPBSA_DeltaG']}`")
-        st.write(f"- **Backbone RMSD:** `{res['MD_Backbone_RMSD']}`")
-        st.write(f"- **Cys151 Loop RMSF:** `{res['MD_RMSF_Cys_Loop']}`")
-        st.write(f"- **H-Bond Occupancy:** `{res['MD_Hbond_Occupancy']}`")
-    with c3:
-        st.markdown("#### 📊 3. Defined Approaches")
-        st.write(f"- **2o3 DA:** `{res['DA_2o3_Call']}`")
-        st.write(f"- **ITSv1/v2:** `{res['ITS_Call']}`")
-        st.write(f"- **KE 3/1 STS:** `{res['KE31_Call']}`")
-    with c4:
-        st.markdown("#### 🛡️ 4. Clinical HRIPT & PoD")
-        st.write(f"- **HRIPT Call:** `{res['HRIPT_Call']}`")
-        st.write(f"- **Confidence:** `{res['HRIPT_Confidence']}`")
-        st.write(f"- **SARA PoD:** `{res['SARA_ED01_PoD']}`")
-
-    if res.get("LLM_Council"):
-        st.markdown("---")
-        st.markdown("### 🤖 Autonomous Gemini LLM Agent Council Deliberation")
-        llm_cols = st.columns(2)
-        with llm_cols[0]:
-            st.info(f"**👨‍🔬 Chemist Agent Analysis:**\n\n{res['LLM_Council'].get('chemist_narrative')}")
-            st.warning(f"**💡 Medicinal Chemistry Bioisostere Recommendations:**\n\n{res['LLM_Council'].get('bioisostere_recommendation')}")
-        with llm_cols[1]:
-            st.success(f"**🧬 Toxicologist Agent AOP Synthesis:**\n\n{res['LLM_Council'].get('toxicologist_narrative')}")
-            st.info(f"**📑 Regulatory Weight-of-Evidence (WoE):**\n\n{res['LLM_Council'].get('regulatory_woe')}")
-
-    if res.get("Analogs"):
-        st.markdown("---")
-        st.markdown("### 🔍 Read-Across & Chemical Space Distance ($D_M$)")
-        st.write(f"**Continuous Applicability Domain:** `{res['Applicability_Domain']}`")
-        cols = st.columns(len(res["Analogs"]))
-        for idx, analog in enumerate(res["Analogs"]):
-            with cols[idx]:
-                st.info(
-                    f"**{analog['name']}** (CAS: `{analog['cas']}`)\n\n"
-                    f"- **Similarity:** `{int(analog['similarity'] * 100)}%`\n"
-                    f"- **Historical LLNA EC3:** `{analog['exp_ec3']}`\n"
-                    f"- **In Vivo Potency:** `{analog['exp_potency']}`"
-                )
-
-    st.markdown("---")
-    summary_bg = "#f0fdf4" if res["OECD_497_Call"] == "NON_SENSITIZER" else "#fef2f2"
-    border_color = "#22c55e" if res["OECD_497_Call"] == "NON_SENSITIZER" else "#ef4444"
-    
-    st.markdown(
-        f"""
-        <div style="background-color: {summary_bg}; border-left: 5px solid {border_color}; padding: 14px 18px; border-radius: 6px; margin-bottom: 15px;">
-            <h4 style="margin: 0 0 8px 0; color: #1e293b;">Harmonized Regulatory Determination: <strong>{res['OECD_497_Call']}</strong> ({res['GHS_Category']})</h4>
-            <p style="margin: 0; color: #334155; font-size: 13.5px;">
-                <strong>ChemBERTa Transformer:</strong> {res['Transformer_Score']:.2f} &nbsp;|&nbsp; 
-                <strong>OpenMM Keap1 Covalent MM/PBSA (ΔG):</strong> {res['MD_MMPBSA_DeltaG']} &nbsp;|&nbsp; 
-                <strong>Human HRIPT Clinical:</strong> {res['HRIPT_Call']} &nbsp;|&nbsp; 
-                <strong>Audit Hash:</strong> <code>{res['Audit_ID']}</code>
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # --- EXPERT HUMAN-IN-THE-LOOP (HITL) ADJUDICATION PANEL ---
+    """Renders the executive dashboard cards, HITL adjudication box, and export toolbar."""
     st.markdown("---")
     st.markdown("""
     <div style="background: linear-gradient(90deg, #1e3a8a 0%, #0284c7 100%); padding: 12px 18px; border-radius: 8px; margin-bottom: 12px;">
@@ -2108,16 +2029,27 @@ def render_dashboard_cards(res: dict):
         )
     with col_rat:
         st.markdown("""
-        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 6px 12px; border-radius: 4px; margin-bottom: 6px;">
-            <b style="color: #92400e; font-size: 0.9rem;">📝 Toxicologist Regulatory Justification (Included in Audit Dossier)</b>
+        <div style="background: #fffbeb; border: 2.5px solid #d97706; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2), 0 2px 4px -1px rgba(217, 119, 6, 0.1);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="color: #92400e; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                    📝 Toxicologist Regulatory Justification
+                </span>
+                <span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;">
+                    ✍️ EDITABLE FIELD (AUDIT TRAIL)
+                </span>
+            </div>
+            <p style="color: #b45309; font-size: 0.82rem; margin: 4px 0 0 0; font-weight: 500;">
+                Click below to modify expert rationale printed in Section 5 of the PDF & XML dossiers:
+            </p>
         </div>
         """, unsafe_allow_html=True)
         hitl_just = st.text_area(
             "Toxicologist Regulatory Justification",
             value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
             key=f"hitl_user_just_{unique_widget_id}",
-            height=105,
-            label_visibility="collapsed"
+            height=110,
+            label_visibility="collapsed",
+            help="Your rationale entered here will be embedded verbatim into the Executive AOP PDF, OECD QPRF Dossier, and ECHA IUCLID 6 export."
         )
 
     # Persist values to active chemical object
@@ -2163,10 +2095,6 @@ def render_dashboard_cards(res: dict):
             key=f"btn_iuclid_xml_{unique_widget_id}"
         )
 
-
-# =====================================================================
-# UI TABS: SINGLE, DASS LAB UPLOAD, SKETCH, BATCH, FORMULATION, UVCB, CO-PILOT
-# =====================================================================
 tab_single, tab_dass_lab, tab_sketch, tab_batch, tab_formulation, tab_uvcb, tab_copilot = st.tabs([
     "🔍 Single Compound & QPRF",
     "🧪 DASS Lab Data Batch (.xlsx / .csv / .txt)",
