@@ -1224,6 +1224,8 @@ def evaluate_borderline_conflict(res: dict) -> dict:
     }
 
 def render_hitl_panel(res: dict):
+    clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
+    unique_widget_id = f"{clean_target_name}_{abs(hash(str(res.get('SMILES', '')) + str(res.get('GHS_Category', '')) + str(time.time()))) % 10000000}"
     conflict = evaluate_borderline_conflict(res)
     st.markdown("---")
     st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
