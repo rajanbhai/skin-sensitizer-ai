@@ -1985,7 +1985,7 @@ def process_single_chemical(
 # =====================================================================
 # UI RENDERING: DASHBOARD CARDS & DUAL PDF DOWNLOADERS
 # =====================================================================
-def render_dashboard_cards(res: Dict[str, Any]):
+def render_dashboard_cards(res: dict):
     mol = Chem.MolFromSmiles(res["SMILES"])
     c_info, c_img = st.columns([2, 1])
     with c_info:
@@ -2089,7 +2089,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
     """, unsafe_allow_html=True)
     
     clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
-    unique_widget_id = f"{tab_context}_{clean_target_name}_{abs(hash(str(res.get('SMILES', '')) + tab_context)) % 1000000}"
+    unique_widget_id = f"{clean_target_name}_{abs(hash(str(res.get('SMILES', '')) + str(res.get('GHS_Category', '')) + str(time.time()))) % 10000000}"
 
     col_opt, col_rat = st.columns([1, 1])
     with col_opt:
