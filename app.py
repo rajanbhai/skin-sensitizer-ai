@@ -1875,7 +1875,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         pdf_bytes = generate_executive_aop_pdf(res)
         st.download_button(
             label=f"📄 Download Executive In Silico AOP Dossier (PDF)",
-            data=exec_pdf_bytes,
+            data=generate_executive_aop_pdf(res),
             file_name=f"Executive_AOP_Dossier_{res['Input']}.pdf",
             mime="application/pdf",
             type="primary",
