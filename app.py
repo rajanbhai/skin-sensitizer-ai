@@ -2088,6 +2088,9 @@ def render_dashboard_cards(res: Dict[str, Any]):
     </div>
     """, unsafe_allow_html=True)
     
+    clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
+    unique_widget_id = f"{tab_context}_{clean_target_name}_{abs(hash(str(res.get('SMILES', '')) + tab_context)) % 1000000}"
+
     col_opt, col_rat = st.columns([1, 1])
     with col_opt:
         st.markdown("**1. Final Regulatory Potency Decision**")
@@ -2099,7 +2102,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
                 "Classify as Not Classified / Non-Sensitizer (NC)",
                 "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
             ],
-            key=f"hitl_user_choice_{res.get('SMILES', 'active')}",
+            key=f"hitl_user_choice_{unique_widget_id}",
             label_visibility="collapsed"
         )
     with col_rat:
@@ -2111,7 +2114,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         hitl_just = st.text_area(
             "Toxicologist Regulatory Justification",
             value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-            key=f"hitl_user_just_{res.get('SMILES', 'active')}",
+            key=f"hitl_user_just_{unique_widget_id}",
             height=105,
             label_visibility="collapsed"
         )
@@ -2128,46 +2131,8 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
     st.success(f"📋 **Active Regulatory Dossier Tier:** `{res['GHS_Category']}` | Rationale locked for export.")
     st.markdown("---")
-    st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
-    st.info("⚠️ **Potency Threshold & Mechanism Review:** Evaluate in silico predictions against clinical or cosmetic exposure limits before compiling the final regulatory dossier.")
-    
-    col_opt, col_rat = st.columns([1, 1])
-    with col_opt:
-        hitl_choice = st.selectbox(
-            "Select Final Regulatory Classification:",
-            [
-                f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
-                "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
-                "Classify as Not Classified / Non-Sensitizer (NC)",
-                "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
-            ],
-            key=f"hitl_user_choice_{res.get('SMILES', 'active')}"
-        )
-    with col_rat:
-        hitl_just = st.text_area(
-            "Toxicologist Regulatory Justification (Included in Audit Dossier):",
-            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-            key=f"hitl_user_just_{res.get('SMILES', 'active')}",
-            height=100
-        )
-
-    # Persist values to active chemical object
-    res["HITL_Override_Applied"] = True
-    res["HITL_Final_Call"] = hitl_choice
-    res["HITL_Justification"] = hitl_just
-    if "Downgrade" in hitl_choice:
-        res["GHS_Category"] = "Category 1B (Moderate)"
-    elif "Non-Sensitizer" in hitl_choice:
-        res["GHS_Category"] = "Not Classified (NC)"
-        res["OECD_497_Call"] = "NON-SENSITIZER"
-
-    st.success(f"📋 **Dossier Potency Tier:** {res['GHS_Category']}")
-    st.markdown("---")
 
     col_pdf1, col_pdf2, col_pdf3 = st.columns(3)
-    clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
-    rand_salt = f"{abs(hash(str(res.get('SMILES', '')) + str(res.get('GHS_Category', '')))) % 1000000}"
-
     with col_pdf1:
         st.download_button(
             label="📄 Download Executive AOP Dossier (PDF)",
@@ -2176,7 +2141,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             mime="application/pdf",
             type="primary",
             width="stretch",
-            key=f"btn_exec_pdf_{clean_target_name}_{rand_salt}"
+            key=f"btn_exec_pdf_{unique_widget_id}"
         )
     with col_pdf2:
         st.download_button(
@@ -2185,7 +2150,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             file_name=f"OECD_QPRF_Dossier_{clean_target_name}.pdf",
             mime="application/pdf",
             width="stretch",
-            key=f"btn_qprf_pdf_{clean_target_name}_{rand_salt}"
+            key=f"btn_qprf_pdf_{unique_widget_id}"
         )
     with col_pdf3:
         st.download_button(
@@ -2194,7 +2159,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
             mime="application/xml",
             width="stretch",
-            key=f"btn_iuclid_xml_{clean_target_name}_{rand_salt}"
+            key=f"btn_iuclid_xml_{unique_widget_id}"
         )
 
 
