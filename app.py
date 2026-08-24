@@ -1225,57 +1225,59 @@ def evaluate_borderline_conflict(res: dict) -> dict:
 
 def render_hitl_panel(res: dict):
     conflict = evaluate_borderline_conflict(res)
-    if conflict["flagged"]:
-        st.markdown("---")
-        st.warning(f"⚠️ **Expert Potency Review & Borderline Adjudication: {conflict['reason']}**")
-        with st.expander("⚖️ **Mechanistic Scenarios & Toxicologist Call (Human-in-the-Loop)**", expanded=True):
-            st.write("Review competing mechanistic scenarios before finalizing the regulatory dossier:")
-            for sc in conflict["scenarios"]:
-                st.markdown(f"**{sc['title']}**")
-                st.markdown(f"* *Implied Potency:* `{sc['potency']}`")
-                st.markdown(f"* *Scientific Rationale:* {sc['rationale']}")
-                st.write("")
+    st.markdown("---")
+    st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
+    
+    with st.container():
+        st.info(f"**Trigger Diagnostic:** {conflict.get('reason', 'Potency Threshold Review')}")
+        
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            st.markdown("**Precautionary In Silico Default (OECD 497):**")
+            st.caption(f"Default Potency: `{res.get('GHS_Category', 'Category 1A')}` based on electrophilic alert detection.")
+        with col_s2:
+            st.markdown("**Real-World Human / Cosmetic Tier:**")
+            st.caption("Account for clinical NOEL in human patch tests and physiological stratum corneum barrier.")
 
-            col_opt, col_rat = st.columns([1, 1])
-            with col_opt:
-                user_choice = st.selectbox(
-                    "Select Final Regulatory Classification:",
-                    [
-                        f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
-                        "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
-                        "Classify as Not Classified / Non-Sensitizer (NC)",
-                        "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
-                    ],
-                    key=f"hitl_choice_{res.get('SMILES', '')}"
-                )
-            with col_rat:
-                user_justification = st.text_area(
-                    "Toxicologist Regulatory Justification (Included in Audit Dossier):",
-                    value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-                    key=f"hitl_just_{res.get('SMILES', '')}"
-                )
+        col_opt, col_rat = st.columns([1, 1])
+        with col_opt:
+            current_choice = st.selectbox(
+                "Select Final Regulatory Classification:",
+                [
+                    f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
+                    "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
+                    "Classify as Not Classified / Non-Sensitizer (NC)",
+                    "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
+                ],
+                key=f"hitl_choice_widget_{res.get('SMILES', 'default')}"
+            )
+        with col_rat:
+            current_just = st.text_area(
+                "Toxicologist Regulatory Justification (Included in Audit Dossier):",
+                value=st.session_state.get(
+                    f"hitl_just_val_{res.get('SMILES', '')}",
+                    "Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits."
+                ),
+                key=f"hitl_just_widget_{res.get('SMILES', 'default')}"
+            )
 
-            if "Downgrade" in user_choice or "Classify as Not Classified" in user_choice or "Inconclusive" in user_choice:
-                res["OECD_497_Call"] = "NON-SENSITIZER" if "Non-Sensitizer" in user_choice else "SENSITIZER"
-                res["GHS_Category"] = "Category 1B (Moderate)" if "1B" in user_choice else ("Not Classified (NC)" if "Non-Sensitizer" in user_choice else "Inconclusive")
-                res["HITL_Override_Applied"] = True
-                res["HITL_Final_Call"] = user_choice
-                res["HITL_Justification"] = user_justification
-            else:
-                res["HITL_Override_Applied"] = True
-                res["HITL_Final_Call"] = f"Accepted Automated Call: {res.get('GHS_Category')}"
-                res["HITL_Justification"] = user_justification
-
-            # Save explicitly into session state
-            if "active_res" in st.session_state and st.session_state["active_res"]:
-                st.session_state["active_res"]["HITL_Override_Applied"] = res["HITL_Override_Applied"]
-                st.session_state["active_res"]["HITL_Final_Call"] = res["HITL_Final_Call"]
-                st.session_state["active_res"]["HITL_Justification"] = res["HITL_Justification"]
-                st.session_state["active_res"]["GHS_Category"] = res["GHS_Category"]
-                st.session_state["active_res"]["OECD_497_Call"] = res["OECD_497_Call"]
-
-            st.info(f"📋 **Dossier Status:** {res.get('HITL_Final_Call')}")
-
+        # Update dictionary & session state
+        res["HITL_Override_Applied"] = True
+        res["HITL_Final_Call"] = current_choice
+        res["HITL_Justification"] = current_just
+        if "Downgrade" in current_choice:
+            res["GHS_Category"] = "Category 1B (Moderate)"
+            res["OECD_497_Call"] = "SENSITIZER"
+        elif "Non-Sensitizer" in current_choice:
+            res["GHS_Category"] = "Not Classified (NC)"
+            res["OECD_497_Call"] = "NON-SENSITIZER"
+            
+        if "active_res" in st.session_state and st.session_state["active_res"]:
+            st.session_state["active_res"]["HITL_Override_Applied"] = True
+            st.session_state["active_res"]["HITL_Final_Call"] = current_choice
+            st.session_state["active_res"]["HITL_Justification"] = current_just
+            st.session_state["active_res"]["GHS_Category"] = res["GHS_Category"]
+            st.session_state["active_res"]["OECD_497_Call"] = res["OECD_497_Call"]
 
 
 def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
