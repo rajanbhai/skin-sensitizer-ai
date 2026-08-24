@@ -2081,6 +2081,8 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
     col_pdf1, col_pdf2, col_pdf3 = st.columns(3)
     clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
+    rand_salt = f"{abs(hash(str(res.get('SMILES', '')) + str(res.get('GHS_Category', '')))) % 1000000}"
+
     with col_pdf1:
         st.download_button(
             label="📄 Download Executive AOP Dossier (PDF)",
@@ -2089,7 +2091,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             mime="application/pdf",
             type="primary",
             width="stretch",
-            key=f"btn_exec_pdf_{clean_target_name}"
+            key=f"btn_exec_pdf_{clean_target_name}_{rand_salt}"
         )
     with col_pdf2:
         st.download_button(
@@ -2098,7 +2100,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             file_name=f"OECD_QPRF_Dossier_{clean_target_name}.pdf",
             mime="application/pdf",
             width="stretch",
-            key=f"btn_qprf_pdf_{clean_target_name}"
+            key=f"btn_qprf_pdf_{clean_target_name}_{rand_salt}"
         )
     with col_pdf3:
         st.download_button(
@@ -2107,7 +2109,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
             file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
             mime="application/xml",
             width="stretch",
-            key=f"btn_iuclid_xml_{clean_target_name}"
+            key=f"btn_iuclid_xml_{clean_target_name}_{rand_salt}"
         )
     with col_pdf3:
         st.download_button(
