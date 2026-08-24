@@ -2530,7 +2530,7 @@ def render_dashboard_cards(res: dict):
 
     md_plot_bytes = generate_keap1_interaction_plot(raw_rmsd, raw_dg)
     res["Keap1_Interaction_Plot"] = md_plot_bytes
-    st.image(md_plot_bytes, caption="OpenMM Molecular Dynamics Simulation Convergence & Keap1 Pocket Energetics", use_column_width=True)
+    st.image(md_plot_bytes, caption="OpenMM Molecular Dynamics Simulation Convergence & Keap1 Pocket Energetics", use_container_width=True)
 
     # 5. READ-ACROSS ANALOGUE SEARCH MATRIX IN UI
     st.markdown("### 🧬 Top-5 Read-Across Structural Analogues (OECD Reference Standards)")
