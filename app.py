@@ -1,4 +1,53 @@
 
+def render_professional_footer_and_credits():
+    """Renders publication-grade regulatory citations, institutional credits, and GLP audit notices."""
+    st.markdown("---")
+    
+    # Dual-column References & Credits Container
+    st.markdown("""
+    <div style="background: #0f172a; border-radius: 12px; padding: 24px; color: #e2e8f0; margin-top: 20px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 16px;">
+            <div>
+                <h3 style="color: #f8fafc; margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em;">📚 Regulatory Reference Standards & Institutional Credits</h3>
+                <p style="color: #94a3b8; margin: 2px 0 0 0; font-size: 0.78rem;">International Harmonization, Biophysical Solvers & Open-Source Scientific Infrastructure</p>
+            </div>
+            <span style="background: #1e293b; color: #38bdf8; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; border: 1px solid #0284c7;">OECD GL 497 / ECHA REACH COMPLIANT</span>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+                <h4 style="color: #38bdf8; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.05em;">🏛️ Regulatory & Methodological Standards</h4>
+                <ul style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.6; margin: 0; padding-left: 16px;">
+                    <li><b>OECD (2021):</b> <i>Guideline No. 497: Defined Approaches on Skin Sensitisation</i>, OECD Publishing, Paris.</li>
+                    <li><b>OECD (2007):</b> <i>Guidance Document on the Validation of (Q)SAR Models (No. 69)</i>, ENV/JM/MONO(2007)2.</li>
+                    <li><b>OECD TG 442C / 442D / 442E:</b> Key Event In Vitro NAM Assays (DPRA, KeratinoSens™, h-CLAT).</li>
+                    <li><b>SCCS (2023):</b> <i>Notes of Guidance for the Testing of Cosmetic Ingredients (12th Revision)</i>, SCCS/1647/22.</li>
+                    <li><b>ECHA (2023):</b> <i>Guidance on Information Requirements and Chemical Safety Assessment: Chapter R.7a</i>.</li>
+                    <li><b>SARA-ICE:</b> Human clinical benchmark dose ($ED_{01}$) probabilistic point-of-departure modeling.</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="color: #38bdf8; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 8px; font-weight: 700; letter-spacing: 0.05em;">🔬 Scientific Frameworks & Software Credits</h4>
+                <ul style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.6; margin: 0; padding-left: 16px;">
+                    <li><b>OpenMM Consortium:</b> High-performance GPU/CPU molecular mechanics & explicit Amber14SB biophysics.</li>
+                    <li><b>RDKit:</b> Open-source cheminformatics, Morgan circular fingerprinting, and SMARTS reaction rules.</li>
+                    <li><b>RCSB Protein Data Bank:</b> High-resolution human Keap1 Kelch domain crystal structure (PDB ID: <b>4L7B</b>).</li>
+                    <li><b>ChemBERTa-2 & HuggingFace:</b> Transformer self-attention representations pre-trained on 77M PubChem SMILES.</li>
+                    <li><b>3Dmol.js:</b> Hardware-accelerated WebGL molecular graphics engine (Nicholas Rego & David Koes).</li>
+                    <li><b>ReportLab & Streamlit:</b> Automated vector PDF dossier generation and reactive UI architecture.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="margin-top: 18px; padding-top: 12px; border-top: 1px solid #334155; font-size: 0.70rem; color: #64748b; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <span>🛡️ <b>GLP Compliance Notice:</b> Predictions are generated using deterministic OECD Defined Approaches and calibrated physics ensembles. Final submissions should be verified via certified Human-in-the-Loop (HITL) toxicological review.</span>
+            <span>Platform Build: <b>v4.2.0-Enterprise</b></span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+
 from rdkit import Chem
 
 PRO_HAPTEN_PATTERNS = {
