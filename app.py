@@ -2081,6 +2081,53 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
     # --- EXPERT HUMAN-IN-THE-LOOP (HITL) ADJUDICATION PANEL ---
     st.markdown("---")
+    st.markdown("""
+    <div style="background: linear-gradient(90deg, #1e3a8a 0%, #0284c7 100%); padding: 12px 18px; border-radius: 8px; margin-bottom: 12px;">
+        <h3 style="color: white; margin: 0; font-size: 1.25rem;">⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review</h3>
+        <p style="color: #e0f2fe; margin: 4px 0 0 0; font-size: 0.88rem;">Adjudicate conservative computational tiers against cosmetic exposure limits, clinical patch thresholds, or specific formulation matrices.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_opt, col_rat = st.columns([1, 1])
+    with col_opt:
+        st.markdown("**1. Final Regulatory Potency Decision**")
+        hitl_choice = st.selectbox(
+            "Select Final Regulatory Classification:",
+            [
+                f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
+                "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
+                "Classify as Not Classified / Non-Sensitizer (NC)",
+                "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
+            ],
+            key=f"hitl_user_choice_{res.get('SMILES', 'active')}",
+            label_visibility="collapsed"
+        )
+    with col_rat:
+        st.markdown("""
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 6px 12px; border-radius: 4px; margin-bottom: 6px;">
+            <b style="color: #92400e; font-size: 0.9rem;">📝 Toxicologist Regulatory Justification (Included in Audit Dossier)</b>
+        </div>
+        """, unsafe_allow_html=True)
+        hitl_just = st.text_area(
+            "Toxicologist Regulatory Justification",
+            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
+            key=f"hitl_user_just_{res.get('SMILES', 'active')}",
+            height=105,
+            label_visibility="collapsed"
+        )
+
+    # Persist values to active chemical object
+    res["HITL_Override_Applied"] = True
+    res["HITL_Final_Call"] = hitl_choice
+    res["HITL_Justification"] = hitl_just
+    if "Downgrade" in hitl_choice:
+        res["GHS_Category"] = "Category 1B (Moderate)"
+    elif "Non-Sensitizer" in hitl_choice:
+        res["GHS_Category"] = "Not Classified (NC)"
+        res["OECD_497_Call"] = "NON-SENSITIZER"
+
+    st.success(f"📋 **Active Regulatory Dossier Tier:** `{res['GHS_Category']}` | Rationale locked for export.")
+    st.markdown("---")
     st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
     st.info("⚠️ **Potency Threshold & Mechanism Review:** Evaluate in silico predictions against clinical or cosmetic exposure limits before compiling the final regulatory dossier.")
     
