@@ -2111,15 +2111,6 @@ def render_dashboard_cards(res: Dict[str, Any]):
             width="stretch",
             key=f"btn_iuclid_xml_{clean_target_name}_{rand_salt}"
         )
-    with col_pdf3:
-        st.download_button(
-            label="📁 Download ECHA IUCLID 6 XML",
-            data=generate_iuclid6_xml(res),
-            file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
-            mime="application/xml",
-            width="stretch",
-            key=f"btn_iuclid_xml_{clean_target_name}"
-        )
 
 
 # =====================================================================
