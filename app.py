@@ -1302,6 +1302,7 @@ def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     title_style = ParagraphStyle('PredTitle', parent=styles['Heading1'], fontSize=16, leading=20, textColor=colors.white, fontName='Helvetica-Bold')
     sec_head = ParagraphStyle('SecHead', parent=styles['Heading3'], fontSize=10, leading=12, textColor=c_navy, fontName='Helvetica-Bold', spaceBefore=6, spaceAfter=4)
     cell_bold = ParagraphStyle('CBold', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=c_navy)
+    cell_header_white = ParagraphStyle('CHeadWhite', parent=styles['Normal'], fontSize=7.5, leading=9.5, fontName='Helvetica-Bold', textColor=colors.white, alignment=1)
     cell_norm = ParagraphStyle('CNorm', parent=styles['Normal'], fontSize=7.5, leading=9.5, textColor=colors.HexColor("#334e68"))
     
     is_sens = res["OECD_497_Call"] == "SENSITIZER"
@@ -1364,11 +1365,11 @@ def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
 
     aop_card_data = [
         [
-            Paragraph("<b>KE1</b><br/>Protein Reactivity<br/><b>DPRA</b>", cell_bold),
-            Paragraph("<b>KE2</b><br/>Keratinocyte ARE<br/><b>KeratinoSens</b>", cell_bold),
-            Paragraph("<b>KE3</b><br/>DC Activation<br/><b>h-CLAT / U-SENS</b>", cell_bold),
-            Paragraph("<b>KE4</b><br/>Deep Graph AI<br/><b>GNN / MPNN</b>", cell_bold),
-            Paragraph("<b>AO</b><br/>Adverse Outcome<br/><b>Human Skin</b>", cell_bold),
+            Paragraph("<b>KE1</b><br/>Protein Reactivity<br/><b>DPRA</b>", cell_header_white),
+            Paragraph("<b>KE2</b><br/>Keratinocyte ARE<br/><b>KeratinoSens</b>", cell_header_white),
+            Paragraph("<b>KE3</b><br/>DC Activation<br/><b>h-CLAT / U-SENS</b>", cell_header_white),
+            Paragraph("<b>KE4</b><br/>Deep Graph AI<br/><b>GNN / MPNN</b>", cell_header_white),
+            Paragraph("<b>AO</b><br/>Adverse Outcome<br/><b>Human Skin</b>", cell_header_white),
         ],
         [
             Paragraph(f"<b>{ke1_call}</b><br/>Score: {res['KE1_DPRA']:.2f}", cell_norm),
