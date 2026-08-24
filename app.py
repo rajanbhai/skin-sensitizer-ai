@@ -3006,6 +3006,28 @@ def render_dashboard_cards(res: dict):
     with col_v3d:
         st.markdown("##### 🌐 Interactive 3D WebGL Keap1 Kelch Binding Pocket")
         render_3d_keap1_viewer(str(res.get("Resolved_Name", "Active Molecule")), str(res.get("SMILES", "")))
+        
+        # Non-Technical Layman Explainer Accordion
+        with st.expander("💡 Non-Technical Guide: How to Read this 3D Simulation", expanded=False):
+            st.markdown("""
+            <div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                <b style="color: #0f172a; font-size: 0.88rem;">🔑 The Lock, Key & Tripwire Principle:</b><br/>
+                <span style="color: #475569; font-size: 0.80rem;">
+                    Your skin cells use this pocket as an alarm sensor. If an ingredient fits into the pocket and touches the red tripwire, it triggers an allergic skin reaction.
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+            col_l1, col_l2, col_l3, col_l4 = st.columns(4)
+            with col_l1:
+                st.markdown("<div style='background:#fefce8; border:1px solid #fef08a; padding:6px 8px; border-radius:6px; font-size:0.75rem; color:#854d0e;'><b>🟡 Yellow:</b> Test Chemical (Key)</div>", unsafe_allow_html=True)
+            with col_l2:
+                st.markdown("<div style='background:#fff1f2; border:1px solid #fecdd3; padding:6px 8px; border-radius:6px; font-size:0.75rem; color:#9f1239;'><b>🔴 Red:</b> Cys151 Sensor (Tripwire)</div>", unsafe_allow_html=True)
+            with col_l3:
+                st.markdown("<div style='background:#f0f9ff; border:1px solid #bae6fd; padding:6px 8px; border-radius:6px; font-size:0.75rem; color:#0369a1;'><b>🔵 Blue:</b> Pocket Wall Guides</div>", unsafe_allow_html=True)
+            with col_l4:
+                st.markdown("<div style='background:#f8fafc; border:1px solid #e2e8f0; padding:6px 8px; border-radius:6px; font-size:0.75rem; color:#334155;'><b>⚪ Grey:</b> Skin Protein Frame</div>", unsafe_allow_html=True)
+            st.caption("ℹ️ Quick Verdict: Yellow locking onto Red = Allergen risk. Far away / bouncing off = Non-sensitizer.")
+
 
     st.markdown("---")
 
