@@ -1,4 +1,53 @@
 
+from rdkit import Chem
+
+PRO_HAPTEN_PATTERNS = {
+    "Direct Michael Acceptor / Cinnamyl System": "[C,c]=[C]-[C]=O",
+    "Benzylic/Allylic Alcohol (Oxidation to Aldehyde)": "[c,C=C][CH2,CH(C)][OH]",
+    "Glycol Ether Ester (Hydrolysis to Alkoxyethanol)": "[O;H0]-[C]-[C]-[O;H0]",
+    "Autoxidizable Polyene/Diene": "[C]=[C]-[CH2]-[C]=[C]",
+    "Pro-hapten Arylamine": "[c][NH2,NHR]"
+}
+
+def evaluate_borderline_conflict(res: dict) -> dict:
+    smiles = res.get("SMILES", "")
+    mol = Chem.MolFromSmiles(smiles) if smiles else None
+    consensus = float(res.get("Consensus_Score", 0.0))
+    ghs = str(res.get("GHS_Category", "Category 1A"))
+    
+    matched_motifs = []
+    if mol:
+        for label, smarts in PRO_HAPTEN_PATTERNS.items():
+            patt = Chem.MolFromSmarts(smarts)
+            if patt and mol.HasSubstructMatch(patt):
+                matched_motifs.append(label)
+
+    is_score_borderline = 0.35 <= consensus <= 0.85
+    is_strong = "1A" in ghs or "Strong" in ghs or "SENSITIZER" in str(res.get("OECD_497_Call", ""))
+    flagged = is_strong or is_score_borderline or bool(matched_motifs)
+
+    scenarios = [
+        {
+            "code": "A",
+            "title": "Scenario A: Conservative In Silico Precautionary Tier (OECD GL 497)",
+            "potency": ghs,
+            "rationale": "Ensemble default assigns Category 1A based on electrophilic alert detection and conservative screening thresholds."
+        },
+        {
+            "code": "B",
+            "title": "Scenario B: Real-World Human Potency / Moderate Exposure Tier",
+            "potency": "GHS Category 1B (Moderate Sensitizer) or NC",
+            "rationale": "Account for limited dermal penetration, physiological protein dilution, and high clinical NOEL in human patch tests."
+        }
+    ]
+
+    return {
+        "flagged": flagged,
+        "reason": f"Potency Threshold Review | Alerts: {', '.join(matched_motifs) if matched_motifs else 'Ensemble Boundary'}",
+        "scenarios": scenarios
+    }
+
+
 def run_unified_gemini(agent_role, prompt_content):
     import os, streamlit as st
     api_key = """AQ.Ab8RN6IOcGMDzLa_J-5gepTkAwLTJRSxBz8FBNGOsPflLuA9Lg""" or os.environ.get("GEMINI_API_KEY", "") or st.session_state.get("gemini_api_key", "")
@@ -2159,3 +2208,44 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+
+    # --- HITL Mechanistic & Potency Adjudication Panel ---
+    conflict = evaluate_borderline_conflict(res)
+    if conflict["flagged"]:
+        st.markdown("---")
+        st.warning(f"⚠️ **Expert Potency Review & Borderline Adjudication: {conflict['reason']}**")
+        with st.expander("⚖️ **Mechanistic Scenarios & Toxicologist Call (Human-in-the-Loop)**", expanded=True):
+            st.write("Review competing mechanistic scenarios before finalizing the regulatory dossier:")
+            for sc in conflict["scenarios"]:
+                st.markdown(f"**{sc['title']}**")
+                st.markdown(f"* *Implied Potency:* `{sc['potency']}`")
+                st.markdown(f"* *Scientific Rationale:* {sc['rationale']}")
+                st.write("")
+
+            col_opt, col_rat = st.columns([1, 1])
+            with col_opt:
+                user_choice = st.selectbox(
+                    "Select Final Regulatory Classification:",
+                    [
+                        f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
+                        "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
+                        "Classify as Not Classified / Non-Sensitizer (NC)",
+                        "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
+                    ],
+                    key=f"hitl_choice_{res.get('SMILES', '')}"
+                )
+            with col_rat:
+                user_justification = st.text_area(
+                    "Toxicologist Regulatory Justification (Included in Audit Dossier):",
+                    value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
+                    key=f"hitl_just_{res.get('SMILES', '')}"
+                )
+
+            if "Downgrade" in user_choice or "Classify as Not Classified" in user_choice or "Inconclusive" in user_choice:
+                res["OECD_497_Call"] = "NON-SENSITIZER" if "Non-Sensitizer" in user_choice else "SENSITIZER"
+                res["GHS_Category"] = "Category 1B (Moderate)" if "1B" in user_choice else ("Not Classified (NC)" if "Non-Sensitizer" in user_choice else "Inconclusive")
+                res["HITL_Override_Applied"] = True
+                res["HITL_Final_Call"] = user_choice
+                res["HITL_Justification"] = user_justification
+                st.success(f"✅ Dossier updated to: **{res['GHS_Category']}**")
