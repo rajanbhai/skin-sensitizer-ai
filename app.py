@@ -1745,31 +1745,36 @@ def build_batch_zip_archive(results_list: list, df_export: pd.DataFrame) -> byte
     """
     Generates a consolidated ZIP archive containing:
     1. Consolidated summary CSV
-    2. Consolidated summary XLSX
-    3. Individual PDF Dossiers for every batch compound
-    4. Individual IUCLID 6 XML files for regulatory import
+    2. Executive In Silico AOP Dossier PDFs
+    3. OECD GL 497 Formal QPRF Dossier PDFs
+    4. ECHA IUCLID 6 XML Files (Section 7.4.1)
     """
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        # Add CSV & Excel
         zf.writestr("00_Consolidated_Batch_Results.csv", df_export.to_csv(index=False).encode("utf-8"))
         
-        # Add Individual Dossiers
         for res in results_list:
             clean_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
             
-            # Generate and write PDF
+            # 1. Executive AOP PDF
             try:
-                pdf_bytes = generate_executive_aop_pdf(res)
-                zf.writestr(f"PDF_Dossiers/Executive_AOP_Dossier_{clean_name}.pdf", pdf_bytes)
-            except Exception as e:
+                pdf_exec = generate_executive_aop_pdf(res)
+                zf.writestr(f"Executive_AOP_Dossiers/Executive_AOP_Dossier_{clean_name}.pdf", pdf_exec)
+            except Exception:
+                pass
+
+            # 2. Formal OECD QPRF PDF
+            try:
+                pdf_qprf = generate_qprf_pdf(res)
+                zf.writestr(f"OECD_QPRF_Dossiers/OECD_QPRF_Dossier_{clean_name}.pdf", pdf_qprf)
+            except Exception:
                 pass
             
-            # Generate and write IUCLID XML
+            # 3. IUCLID 6 XML
             try:
                 xml_str = generate_iuclid6_xml(res)
                 zf.writestr(f"IUCLID6_XML/IUCLID6_Section7.4.1_{clean_name}.xml", xml_str.encode("utf-8"))
-            except Exception as e:
+            except Exception:
                 pass
 
     zip_buffer.seek(0)
@@ -2074,53 +2079,11 @@ def render_dashboard_cards(res: Dict[str, Any]):
         unsafe_allow_html=True
     )
 
-    col_pdf1, col_pdf2 = st.columns(2)
+        col_pdf1, col_pdf2, col_pdf3 = st.columns(3)
+    clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
     with col_pdf1:
-        exec_safe_cas_name = str(res.get('Input', res.get('Resolved_Name', 'Target_Molecule'))).replace('/', '_').replace(' ', '_')
-        pdf_bytes = generate_executive_aop_pdf(res)
-    # --- EXPERT HUMAN-IN-THE-LOOP (HITL) ADJUDICATION PANEL ---
-    st.markdown("---")
-    st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
-    st.info("⚠️ **Potency Threshold & Mechanism Review:** Evaluate in silico predictions against clinical or cosmetic exposure limits before compiling the final regulatory dossier.")
-    
-    col_opt, col_rat = st.columns([1, 1])
-    with col_opt:
-        hitl_choice = st.selectbox(
-            "Select Final Regulatory Classification:",
-            [
-                f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
-                "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
-                "Classify as Not Classified / Non-Sensitizer (NC)",
-                "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
-            ],
-            key=f"hitl_user_choice_{res.get('SMILES', '')}"
-        )
-    with col_rat:
-        hitl_just = st.text_area(
-            "Toxicologist Regulatory Justification (Included in Audit Dossier):",
-            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-            key=f"hitl_user_just_{res.get('SMILES', '')}",
-            height=100
-        )
-
-    # Persist values to active chemical object
-    res["HITL_Override_Applied"] = True
-    res["HITL_Final_Call"] = hitl_choice
-    res["HITL_Justification"] = hitl_just
-    if "Downgrade" in hitl_choice:
-        res["GHS_Category"] = "Category 1B (Moderate)"
-    elif "Non-Sensitizer" in hitl_choice:
-        res["GHS_Category"] = "Not Classified (NC)"
-        res["OECD_497_Call"] = "NON-SENSITIZER"
-
-    st.success(f"📋 **Dossier Final Call Set To:** {res['GHS_Category']}")
-    st.markdown("---")
-
-    col_pdf1, col_pdf2 = st.columns(2)
-    with col_pdf1:
-        clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
         st.download_button(
-            label="📄 Download Executive In Silico AOP Dossier (PDF)",
+            label="📄 Download Executive AOP Dossier (PDF)",
             data=generate_executive_aop_pdf(res),
             file_name=f"Executive_AOP_Dossier_{clean_target_name}.pdf",
             mime="application/pdf",
@@ -2129,14 +2092,23 @@ def render_dashboard_cards(res: Dict[str, Any]):
             key=f"btn_exec_pdf_{clean_target_name}"
         )
     with col_pdf2:
-            st.download_button(
-                label="📁 Download ECHA IUCLID 6 XML Dossier",
-                data=generate_iuclid6_xml(res),
-                file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
-                mime="application/xml",
-                width="stretch",
-                key=f"btn_iuclid_xml_{clean_target_name}"
-            )
+        st.download_button(
+            label="📑 Download OECD 497 QPRF Dossier (PDF)",
+            data=generate_qprf_pdf(res),
+            file_name=f"OECD_QPRF_Dossier_{clean_target_name}.pdf",
+            mime="application/pdf",
+            width="stretch",
+            key=f"btn_qprf_pdf_{clean_target_name}"
+        )
+    with col_pdf3:
+        st.download_button(
+            label="📁 Download ECHA IUCLID 6 XML",
+            data=generate_iuclid6_xml(res),
+            file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
+            mime="application/xml",
+            width="stretch",
+            key=f"btn_iuclid_xml_{clean_target_name}"
+        )
 
 
 # =====================================================================
