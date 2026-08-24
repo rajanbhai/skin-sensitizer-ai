@@ -1889,6 +1889,43 @@ def render_dashboard_cards(res: Dict[str, Any]):
     with col_pdf1:
         exec_safe_cas_name = str(res.get('Input', res.get('Resolved_Name', 'Target_Molecule'))).replace('/', '_').replace(' ', '_')
         pdf_bytes = generate_executive_aop_pdf(res)
+    # --- EXPERT HUMAN-IN-THE-LOOP (HITL) ADJUDICATION PANEL ---
+    st.markdown("---")
+    st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
+    st.info("⚠️ **Potency Threshold & Mechanism Review:** Evaluate in silico predictions against clinical or cosmetic exposure limits before compiling the final regulatory dossier.")
+    
+    col_opt, col_rat = st.columns([1, 1])
+    with col_opt:
+        hitl_choice = st.selectbox(
+            "Select Final Regulatory Classification:",
+            [
+                f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
+                "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
+                "Classify as Not Classified / Non-Sensitizer (NC)",
+                "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
+            ],
+            key=f"hitl_choice_w_{res.get('SMILES', 'active')}"
+        )
+    with col_rat:
+        hitl_just = st.text_area(
+            "Toxicologist Regulatory Justification (Included in Audit Dossier):",
+            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
+            key=f"hitl_just_w_{res.get('SMILES', 'active')}",
+            height=100
+        )
+    
+    # Persist values to active chemical object
+    res["HITL_Override_Applied"] = True
+    res["HITL_Final_Call"] = hitl_choice
+    res["HITL_Justification"] = hitl_just
+    if "Downgrade" in hitl_choice:
+        res["GHS_Category"] = "Category 1B (Moderate)"
+    elif "Non-Sensitizer" in hitl_choice:
+        res["GHS_Category"] = "Not Classified (NC)"
+        res["OECD_497_Call"] = "NON-SENSITIZER"
+    
+    st.success(f"📋 **Dossier Potency Tier:** {res['GHS_Category']}")
+    st.markdown("---")
         st.download_button(
             label=f"📄 Download Executive In Silico AOP Dossier (PDF)",
             data=generate_executive_aop_pdf(res),
