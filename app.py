@@ -1280,7 +1280,7 @@ def render_hitl_panel(res: dict):
 
         res["HITL_Override_Applied"] = True
         res["HITL_Final_Call"] = current_choice
-        res["HITL_Justification"] = current_just
+        res["HITL_Justification"] = hitl_just
         if "Downgrade" in current_choice:
             res["GHS_Category"] = "Category 1B (Moderate)"
             res["OECD_497_Call"] = "SENSITIZER"
@@ -1291,7 +1291,7 @@ def render_hitl_panel(res: dict):
         if "active_res" in st.session_state and st.session_state["active_res"]:
             st.session_state["active_res"]["HITL_Override_Applied"] = True
             st.session_state["active_res"]["HITL_Final_Call"] = current_choice
-            st.session_state["active_res"]["HITL_Justification"] = current_just
+            st.session_state["active_res"]["HITL_Justification"] = hitl_just
             st.session_state["active_res"]["GHS_Category"] = res["GHS_Category"]
             st.session_state["active_res"]["OECD_497_Call"] = res["OECD_497_Call"]
 
