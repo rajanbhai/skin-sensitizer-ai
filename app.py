@@ -1911,7 +1911,7 @@ tab_single, tab_dass_lab, tab_sketch, tab_batch, tab_formulation, tab_uvcb, tab_
 with tab_single:
     col_in, col_btn = st.columns([4, 1])
     with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="106-50-3")
+        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="Hexyl cinnamaldehyde")
     with col_btn:
         st.write("")
         st.write("")
