@@ -2708,6 +2708,10 @@ def render_dashboard_cards(res: dict):
     """Renders fully formatted, non-truncating executive dossier with expanded Council synthesis and 3D WebGL."""
     st.markdown("---")
     
+    # Precompute Bayesian WoE metrics at top level so all child sections can access them
+    bayes_res = BayesianWoEEngine.compute_posterior(res)
+    res["Bayesian_WoE"] = bayes_res
+    
     clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
     unique_widget_id = f"{clean_target_name}_{abs(hash(str(res.get('SMILES', '')) + str(res.get('GHS_Category', '')) + str(time.time()))) % 10000000}"
 
