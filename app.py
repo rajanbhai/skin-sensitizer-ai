@@ -250,26 +250,25 @@ with st.sidebar:
         st.info("ℹ️ Running in Local Deterministic Mode. Enter a free Gemini API Key for autonomous LLM agent reasoning.")
 
     st.markdown("---")
-    st.markdown("### ⚙️ 10 Enterprise Computational Engines")
-    st.markdown(
-        """
-        - **1. Structure & Haptenation:** SMARTS Rules
-        - **2. 2D Attribution Heatmap:** Atom Contours
-        - **3. OpenMM MD Dynamics:** Keap1 $\\Delta G_{\\text{MM/PBSA}}$
-        - **4. ChemBERTa Transformer:** BPE Embeddings
-        - **5. Graph Neural Network:** Spatial MPNN
-        - **6. Cutaneous Bioactivation:** Phase I/II SMIRKS
-        - **7. Defined Approaches:** OECD GL 497 Logic
-        - **8. QA & Audit Trail:** SHA-256 Integrity
-        """
-    )
-    st.markdown("### 🤖 4 Autonomous Multi-Agent Council")
-    st.markdown(
-        """
-        - **1. Chemist Bot:** Reaction Mechanisms
-        - **2. Toxicologist Bot:** AOP Synthesis
-        - **3. MedChem Bot:** Bioisostere Design
-        - **4. Regulatory Bot:** Weight of Evidence (WoE)
+    st.markdown("### ⚙️ 10 Enterprise Computational Engines
+
+1. **Structure & Haptenation:** Electrophilic SMARTS & Cys-Adduct Rules
+2. **2D Attribution Heatmap:** Integrated Gradients Graph Atom Contours
+3. **OpenMM 500 ps MD Dynamics:** Keap1-Cys151 Complex Convergence (RMSD/RMSF)
+4. **MM-PBSA Pocket Energetics:** Free Binding Energy (ΔG in kcal/mol)
+5. **Interactive 3D WebGL Viewer:** Keap1 Kelch Binding Pocket (PDB: 4L7B)
+6. **ChemBERTa-2 Transformer:** 77M PubChem SMILES Embeddings
+7. **Spatial MPNN / GNN:** Directed Message Passing Neural Ensemble
+8. **Cutaneous Bioactivation:** Pre-hapten Auto-oxidation & CYP450 Pro-haptens
+9. **Bayesian WoE Engine:** OECD 497 Sequential Likelihood & 95% CI
+10. **NGRA MoS Calculator:** SCCS 12th Rev Exposure & SARA-ICE ED01 PoD
+
+🤖 4 Autonomous Multi-Agent Council
+
+1. **Mechanistic Toxicologist Agent:** AOP KE1–KE4 Biological Cascade
+2. **Formulations & Bioavailability Chemist:** Dermal Kp Flux & Vehicle Matrix
+3. **Regulatory Compliance Officer:** OECD GL 497 & ECHA REACH Standard
+4. **Consensus Synthesis Chair:** Probabilistic Bayesian WoE Synthesis
         """
     )
     st.markdown("---")
