@@ -2343,7 +2343,29 @@ def render_dashboard_cards(res: dict):
     with col_b3:
         st.metric("95% Credible Interval", bayes_res["CI_95_Range"])
     with col_b4:
-        st.metric("OECD WoE Certainty", bayes_res["WoE_Classification"].split("(")[0])
+        # Prevent text truncation with responsive badge container
+        full_tier = bayes_res["WoE_Classification"]
+        tier_title = full_tier.split("(")[0].strip()
+        tier_sub = f"({full_tier.split('(')[1]}" if "(" in full_tier else ""
+        
+        # Determine badge color
+        badge_bg = "#fee2e2" if "Definitive Sensitizer" in full_tier or "Probable Sensitizer" in full_tier else ("#fef3c7" if "Borderline" in full_tier else "#dcfce7")
+        badge_border = "#dc2626" if "Definitive Sensitizer" in full_tier or "Probable Sensitizer" in full_tier else ("#d97706" if "Borderline" in full_tier else "#16a34a")
+        badge_text = "#991b1b" if "Definitive Sensitizer" in full_tier or "Probable Sensitizer" in full_tier else ("#92400e" if "Borderline" in full_tier else "#166534")
+
+        st.markdown(f"""
+        <div style="padding: 1px 0;">
+            <div style="color: #64748b; font-size: 0.82rem; font-weight: 500; margin-bottom: 4px;">OECD WoE Certainty</div>
+            <div style="background: {badge_bg}; border: 1.5px solid {badge_border}; border-radius: 6px; padding: 4px 8px; display: inline-block;">
+                <div style="color: {badge_text}; font-size: 0.88rem; font-weight: 800; line-height: 1.2;">
+                    {tier_title}
+                </div>
+                <div style="color: {badge_text}; font-size: 0.70rem; font-weight: 600; opacity: 0.85;">
+                    {tier_sub}
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     with st.expander("🔍 View Sequential Bayesian Evidence Updating Table", expanded=False):
         st.dataframe(pd.DataFrame(bayes_res["Sequential_Updates"]), use_container_width=True, hide_index=True)
