@@ -1261,7 +1261,21 @@ def render_hitl_panel(res: dict):
                 res["HITL_Override_Applied"] = True
                 res["HITL_Final_Call"] = user_choice
                 res["HITL_Justification"] = user_justification
-                st.success(f"✅ Dossier updated to: **{res['GHS_Category']}**")
+            else:
+                res["HITL_Override_Applied"] = True
+                res["HITL_Final_Call"] = f"Accepted Automated Call: {res.get('GHS_Category')}"
+                res["HITL_Justification"] = user_justification
+
+            # Save explicitly into session state
+            if "active_res" in st.session_state and st.session_state["active_res"]:
+                st.session_state["active_res"]["HITL_Override_Applied"] = res["HITL_Override_Applied"]
+                st.session_state["active_res"]["HITL_Final_Call"] = res["HITL_Final_Call"]
+                st.session_state["active_res"]["HITL_Justification"] = res["HITL_Justification"]
+                st.session_state["active_res"]["GHS_Category"] = res["GHS_Category"]
+                st.session_state["active_res"]["OECD_497_Call"] = res["OECD_497_Call"]
+
+            st.info(f"📋 **Dossier Status:** {res.get('HITL_Final_Call')}")
+
 
 
 def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
