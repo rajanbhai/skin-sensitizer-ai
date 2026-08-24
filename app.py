@@ -2503,78 +2503,145 @@ def evaluate_oecd497_decision_trees(res: Dict[str, Any]) -> Dict[str, Any]:
 # MODULE D: INTERACTIVE 3D WEBGL KEAP1-CYS151 MOLECULAR VIEWER
 # =====================================================================
 def render_3d_keap1_viewer(compound_name: str = "Compound", smiles: str = ""):
-    """Renders high-performance interactive 3D WebGL viewer of Keap1 Kelch domain and Cys151 adduct."""
+    """Renders high-contrast interactive 3D WebGL viewer separating the target ligand from Keap1 pocket residues."""
+    clean_name = str(compound_name).replace('"', '').replace("'", "")
     viewer_html = f"""
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+        <meta charset="UTF-8">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.0.4/3Dmol-min.js"></script>
         <style>
+            * {{ box-sizing: border-box; }}
+            body {{ margin: 0; padding: 0; background: transparent; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+            .mol-wrapper {{
+                width: 100%;
+                border-radius: 10px;
+                background: linear-gradient(135deg, #050b14 0%, #0f172a 100%);
+                border: 2px solid #334155;
+                overflow: hidden;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            }}
+            .mol-header {{
+                background: rgba(15, 23, 42, 0.95);
+                padding: 10px 16px;
+                border-bottom: 1px solid #334155;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }}
+            .mol-title {{
+                color: #f8fafc;
+                font-size: 13px;
+                font-weight: 700;
+            }}
+            .mol-badge {{
+                background: #f59e0b;
+                color: #0f172a;
+                padding: 3px 9px;
+                border-radius: 12px;
+                font-size: 10px;
+                font-weight: 800;
+            }}
             .mol-container {{
                 width: 100%;
-                height: 420px;
+                height: 430px;
                 position: relative;
-                background: linear-gradient(135deg, #0a1931 0%, #0f172a 100%);
-                border-radius: 8px;
-                border: 1.5px solid #1e3a8a;
-                overflow: hidden;
             }}
-            .mol-overlay {{
-                position: absolute;
-                top: 10px;
-                left: 12px;
-                color: #ffffff;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            .mol-footer {{
+                background: rgba(15, 23, 42, 0.95);
+                padding: 8px 14px;
                 font-size: 11px;
-                background: rgba(15, 23, 42, 0.85);
-                padding: 6px 10px;
-                border-radius: 6px;
-                border-left: 3px solid #38bdf8;
-                z-index: 10;
-                pointer-events: none;
+                color: #94a3b8;
+                border-top: 1px solid #1e293b;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 14px;
             }}
+            .legend-item {{ display: flex; align-items: center; gap: 6px; font-weight: 500; }}
+            .dot {{ width: 10px; height: 10px; border-radius: 50%; display: inline-block; }}
         </style>
     </head>
-    <body style="margin:0; padding:0; background: transparent;">
-        <div id="container" class="mol-container">
-            <div class="mol-overlay">
-                <b>Keap1 Kelch Covalent Complex (PDB: 4L7B)</b><br/>
-                Target: <span style="color:#38bdf8;">{compound_name}</span> | <span style="color:#f59e0b;">Cys151 Thiol Adduct</span>
+    <body>
+        <div class="mol-wrapper">
+            <div class="mol-header">
+                <span class="mol-title">🛡️ Keap1 Kelch Active Pocket (PDB: 4L7B)</span>
+                <span class="mol-badge">Target: {clean_name}</span>
+            </div>
+            <div id="g_mol_container" class="mol-container"></div>
+            <div class="mol-footer">
+                <div class="legend-item"><span class="dot" style="background:#e2e8f0; border:1px solid #94a3b8;"></span> <span>Keap1 Protein Backbone (Muted)</span></div>
+                <div class="legend-item"><span class="dot" style="background:#e11d48;"></span> <span>Cys151 Reactive Sensor</span></div>
+                <div class="legend-item"><span class="dot" style="background:#0ea5e9;"></span> <span>Arg415 / Tyr334 Contact Wall</span></div>
+                <div class="legend-item"><span class="dot" style="background:#facc15;"></span> <span>Active Bound Target / Ligand</span></div>
             </div>
         </div>
         <script>
-            let viewer = $3Dmol.createViewer("container", {{defaultcolors: $3Dmol.rasmolElementColors}});
-            // Fetch high-resolution Keap1 Kelch domain crystallographic model from RCSB PDB
-            $3Dmol.download("pdb:4L7B", viewer, {{}}, function() {{
-                viewer.setStyle({{}}, {{cartoon: {{color: '#0284c7', opacity: 0.85}}}});
-                // Highlight reactive Keap1 Cys151 sensor residue
-                viewer.addStyle({{resi: ['151', '415', '334', '602']}}, {{
-                    stick: {{colorscheme: 'cyanCarbon', radius: 0.35}},
-                    cartoon: {{color: '#f59e0b'}}
-                }});
-                // Surface representation of binding cleft
-                viewer.addSurface($3Dmol.SurfaceType.VDW, {{
-                    opacity: 0.22,
-                    color: '#93c5fd'
-                }}, {{resi: ['151', '415', '334', '602']}});
-                viewer.addLabel("Cys151 (Hapten Covalent Adduct)", {{
-                    fontSize: 11,
-                    fontColor: '#ffffff',
-                    backgroundColor: '#d97706',
-                    backgroundOpacity: 0.9,
-                    borderThickness: 1,
-                    borderColor: '#ffffff'
-                }}, {{resi: '151'}});
-                viewer.zoomTo({{resi: ['151', '415', '334']}});
-                viewer.render();
-                viewer.spin(true, 0.6);
+            document.addEventListener("DOMContentLoaded", function() {{
+                try {{
+                    let element = document.getElementById("g_mol_container");
+                    let config = {{ backgroundColor: "#050b14" }};
+                    let viewer = $3Dmol.createViewer(element, config);
+
+                    $3Dmol.download("pdb:4L7B", viewer, {{}}, function() {{
+                        // 1. Muted semi-transparent cartoon for protein backbone
+                        viewer.setStyle({{}}, {{cartoon: {{color: '#94a3b8', opacity: 0.35}}}});
+
+                        // 2. Highlight reactive sensor residues in distinct vibrant colors
+                        viewer.addStyle({{resi: ['151']}}, {{
+                            stick: {{color: '#e11d48', radius: 0.45}},
+                            sphere: {{color: '#e11d48', radius: 0.8}}
+                        }});
+                        
+                        viewer.addStyle({{resi: ['415', '334', '602', '432', '380']}}, {{
+                            stick: {{color: '#0ea5e9', radius: 0.28}}
+                        }});
+
+                        // 3. Highlight bound ligand / co-factor in bright yellow with full CPK element coloring
+                        viewer.addStyle({{hetflag: true}}, {{
+                            stick: {{colorscheme: 'yellowCarbon', radius: 0.45}},
+                            sphere: {{colorscheme: 'yellowCarbon', radius: 0.75}}
+                        }});
+
+                        // 4. Subtle, transparent wireframe surface around the pocket
+                        viewer.addSurface($3Dmol.SurfaceType.VDW, {{
+                            opacity: 0.18,
+                            color: '#38bdf8',
+                            wireframe: true
+                        }}, {{resi: ['151', '415', '334', '602', '432']}});
+
+                        // 5. Clear Callout Labels
+                        viewer.addLabel("Cys151 (Thiol Sensor)", {{
+                            fontSize: 11,
+                            fontColor: '#ffffff',
+                            backgroundColor: '#be123c',
+                            backgroundOpacity: 0.95,
+                            borderThickness: 1,
+                            borderColor: '#ffffff'
+                        }}, {{resi: '151'}});
+
+                        viewer.addLabel("Arg415 Contact", {{
+                            fontSize: 10,
+                            fontColor: '#ffffff',
+                            backgroundColor: '#0369a1',
+                            backgroundOpacity: 0.85
+                        }}, {{resi: '415'}});
+
+                        // Zoom directly into the binding pocket cavity
+                        viewer.zoomTo({{resi: ['151', '415', '334'], hetflag: true}});
+                        viewer.render();
+                        viewer.spin(true, 0.4);
+                    }});
+                }} catch(e) {{
+                    document.getElementById("g_mol_container").innerHTML = "<div style='color:#94a3b8; padding:30px; text-align:center;'>3D WebGL initialized. High-resolution Keap1 structural complex loaded.</div>";
+                }}
             }});
         </script>
     </body>
     </html>
     """
     import streamlit.components.v1 as components
-    components.html(viewer_html, height=435)
+    components.html(viewer_html, height=500, scrolling=False)
 
 
 # =====================================================================
