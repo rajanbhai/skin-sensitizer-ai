@@ -1917,14 +1917,17 @@ with tab_single:
         st.write("")
         run_single_btn = st.button("Run Evaluation", type="primary", width="stretch")
 
-    if run_single_btn or single_input:
+    if run_single_btn or ("active_res" not in st.session_state and single_input):
         with st.spinner(f"Evaluating {single_input}..."):
             res = process_single_chemical(single_input, api_key=api_key_input)
             st.session_state["active_res"] = res
-            if res["Status"] == "FAILED_RESOLUTION":
-                st.error(f"Could not resolve structure for '{single_input}'.")
-            else:
-                render_dashboard_cards(res)
+
+    if st.session_state.get("active_res") is not None:
+        active_data = st.session_state["active_res"]
+        if active_data.get("Status") == "FAILED_RESOLUTION":
+            st.error(f"Could not resolve structure for '{single_input}'.")
+        else:
+            render_dashboard_cards(active_data)
 
 # ---------------------------------------------------------------------
 # TAB 2: DASS LAB DATA FILE INGESTION (XLSX, CSV, TXT)
