@@ -1587,6 +1587,98 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
 # =====================================================================
 # FULL MULTI-AGENT PIPELINE EXECUTION
 # =====================================================================
+
+# ---------------------------------------------------------------------
+# ADVANCED METABOLIC BIOACTIVATION & STRATUM CORNEUM FLUX ENGINE
+# ---------------------------------------------------------------------
+def evaluate_pro_pre_hapten_activation(mol) -> dict:
+    """
+    Evaluates abiotic autoxidation (Pre-hapten) and enzymatic bioactivation (Pro-hapten)
+    via targeted SMARTS structural transformation alerts.
+    """
+    if mol is None:
+        return {"status": "Unknown", "pathway": "None", "activation_risk": "Low"}
+
+    # Pre-hapten autoxidation patterns (e.g., allylic/terpenoid C-H, conjugated dienes)
+    pre_hapten_smarts = [
+        ("[CH2,CH3]-[CH]=[CH]-[CH2,CH3]", "Allylic Autoxidation (Forms sensitizing hydroperoxides)"),
+        ("C1=CC=C(O)C(=C1)O", "Ortho-Diphenol / Catechol (Air-oxidizes to 1,2-benzoquinone)"),
+        ("C1=CC(=CC=C1O)O", "Para-Diphenol / Hydroquinone (Air-oxidizes to 1,4-benzoquinone)"),
+        ("C=C(C)C1CC=C(C)CC1", "Limonene-type Terpene (Autoxidizes to carveol/carvone hydroperoxides)"),
+        ("[CH2]=C(C)[CH2][CH2]", "Isoprenoid Autoxidation Alert"),
+    ]
+
+    # Pro-hapten CYP450 bioactivation patterns
+    pro_hapten_smarts = [
+        ("c1ccc(N)cc1", "Aromatic Primary Amine (CYP450 N-hydroxylation to reactive nitroso/quinone-diimine)"),
+        ("c1ccc(O)cc1", "Monophenol (CYP450 ortho-hydroxylation to reactive catechol/quinone)"),
+        ("[CH2]Cl|[CH2]Br|[CH2]I", "Primary Alkyl Halide (Direct or metabolic S-alkylation)"),
+        ("c1ccc2[nH]ccc2c1", "Indole / Heterocycle (Metabolic ring epoxidation)"),
+        ("C=C-CO-O", "Acrylate / Methacrylate precursor"),
+    ]
+
+    detected = []
+    category = "Direct-Acting / Inert"
+    risk_level = "Low"
+
+    for smt, desc in pre_hapten_smarts:
+        patt = Chem.MolFromSmarts(smt)
+        if patt and mol.HasSubstructMatch(patt):
+            detected.append(f"Pre-Hapten: {desc}")
+            category = "Pre-Hapten (Abiotic Air Activation)"
+            risk_level = "High"
+
+    for smt, desc in pro_hapten_smarts:
+        patt = Chem.MolFromSmarts(smt)
+        if patt and mol.HasSubstructMatch(patt):
+            detected.append(f"Pro-Hapten: {desc}")
+            if category == "Direct-Acting / Inert":
+                category = "Pro-Hapten (Metabolic Bioactivation)"
+            else:
+                category = "Dual Pre/Pro-Hapten"
+            risk_level = "High"
+
+    return {
+        "Category": category,
+        "Risk_Level": risk_level,
+        "Alerts": detected if detected else ["No autoxidation or metabolic bioactivation alerts detected."],
+    }
+
+def calculate_finite_dose_dermal_flux(mw: float, logp: float) -> dict:
+    """
+    Calculates Maximum Steady-State Dermal Flux (Jmax in ug/cm2/hr) using Potts-Guy & Cleek-Bunge models.
+    """
+    try:
+        # Potts-Guy Log Kp (cm/s) = -2.7 + 0.71*LogP - 0.0061*MW
+        log_kp = -2.7 + (0.71 * logp) - (0.0061 * mw)
+        kp_cm_s = 10 ** log_kp
+        kp_cm_hr = kp_cm_s * 3600.0
+
+        # Water solubility estimation (mg/mL) via modified Yalkowsky equation
+        log_ws_m = 0.5 - logp  # approximate aqueous solubility in mol/L
+        ws_mg_ml = max(0.0001, (10 ** log_ws_m) * mw / 1000.0)
+
+        # Jmax (ug/cm2/h) = Kp (cm/h) * Water Solubility (ug/cm3)
+        # 1 mg/mL = 1000 ug/cm3
+        j_max = kp_cm_hr * (ws_mg_ml * 1000.0)
+        
+        # Classification
+        if j_max > 10.0:
+            flux_tier = "High Dermal Absorption (>10 µg/cm²/h)"
+        elif j_max > 1.0:
+            flux_tier = "Moderate Dermal Absorption (1–10 µg/cm²/h)"
+        else:
+            flux_tier = "Low / Slow Dermal Penetration (<1 µg/cm²/h)"
+
+        return {
+            "Kp_cm_hr": f"{kp_cm_hr:.4e}",
+            "J_max_ug_cm2_hr": round(j_max, 2),
+            "Flux_Tier": flux_tier
+        }
+    except Exception:
+        return {"Kp_cm_hr": "N/A", "J_max_ug_cm2_hr": "N/A", "Flux_Tier": "Unknown"}
+
+
 def process_single_chemical(
     identifier: str,
     api_key: str = "",
