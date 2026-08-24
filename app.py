@@ -2079,7 +2079,7 @@ def render_dashboard_cards(res: Dict[str, Any]):
         unsafe_allow_html=True
     )
 
-        col_pdf1, col_pdf2, col_pdf3 = st.columns(3)
+    col_pdf1, col_pdf2, col_pdf3 = st.columns(3)
     clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
     with col_pdf1:
         st.download_button(
@@ -2099,6 +2099,15 @@ def render_dashboard_cards(res: Dict[str, Any]):
             mime="application/pdf",
             width="stretch",
             key=f"btn_qprf_pdf_{clean_target_name}"
+        )
+    with col_pdf3:
+        st.download_button(
+            label="📁 Download ECHA IUCLID 6 XML",
+            data=generate_iuclid6_xml(res),
+            file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
+            mime="application/xml",
+            width="stretch",
+            key=f"btn_iuclid_xml_{clean_target_name}"
         )
     with col_pdf3:
         st.download_button(
