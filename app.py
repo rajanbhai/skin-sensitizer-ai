@@ -1920,6 +1920,7 @@ with tab_single:
     if run_single_btn or single_input:
         with st.spinner(f"Evaluating {single_input}..."):
             res = process_single_chemical(single_input, api_key=api_key_input)
+            st.session_state["active_res"] = res
             if res["Status"] == "FAILED_RESOLUTION":
                 st.error(f"Could not resolve structure for '{single_input}'.")
             else:
@@ -2086,6 +2087,7 @@ with tab_sketch:
     if st.button("🚀 Predict from Sketched Structure", type="primary"):
         with st.spinner("Analyzing sketched molecule..."):
             res = process_single_chemical(sketched_smiles, api_key=api_key_input)
+            st.session_state["active_res"] = res
             render_dashboard_cards(res)
 
 # ---------------------------------------------------------------------
@@ -2175,6 +2177,7 @@ with tab_formulation:
                 cas_val = str(row["Ingredient_CAS"])
                 conc = float(row["Concentration_wt_percent"])
                 ind_res = process_single_chemical(cas_val, api_key=api_key_input)
+                st.session_state["active_res"] = res
                 
                 is_sens = ind_res["OECD_497_Call"] == "SENSITIZER"
                 is_cat1a = "1A" in ind_res["GHS_Category"]
@@ -2256,6 +2259,7 @@ with tab_uvcb:
                     cas_str = parts[1].strip() if len(parts) >= 3 else name_str
 
                     ind_res = process_single_chemical(cas_str, api_key=api_key_input)
+                    st.session_state["active_res"] = res
                     if ind_res["KE1_DPRA"] > max_ke1:
                         max_ke1 = ind_res["KE1_DPRA"]
                         strongest_sensitizer = ind_res["Resolved_Name"]
