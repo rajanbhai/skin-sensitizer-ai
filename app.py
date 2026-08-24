@@ -1904,16 +1904,16 @@ def render_dashboard_cards(res: Dict[str, Any]):
                 "Classify as Not Classified / Non-Sensitizer (NC)",
                 "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
             ],
-            key=f"hitl_choice_w_{res.get('SMILES', 'active')}"
+            key=f"hitl_user_choice_{res.get('SMILES', '')}"
         )
     with col_rat:
         hitl_just = st.text_area(
             "Toxicologist Regulatory Justification (Included in Audit Dossier):",
             value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-            key=f"hitl_just_w_{res.get('SMILES', 'active')}",
+            key=f"hitl_user_just_{res.get('SMILES', '')}",
             height=100
         )
-    
+
     # Persist values to active chemical object
     res["HITL_Override_Applied"] = True
     res["HITL_Final_Call"] = hitl_choice
@@ -1923,25 +1923,31 @@ def render_dashboard_cards(res: Dict[str, Any]):
     elif "Non-Sensitizer" in hitl_choice:
         res["GHS_Category"] = "Not Classified (NC)"
         res["OECD_497_Call"] = "NON-SENSITIZER"
-    
-    st.success(f"📋 **Dossier Potency Tier:** {res['GHS_Category']}")
+
+    st.success(f"📋 **Dossier Final Call Set To:** {res['GHS_Category']}")
     st.markdown("---")
+
+    col_pdf1, col_pdf2 = st.columns(2)
+    with col_pdf1:
+        clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
         st.download_button(
-            label=f"📄 Download Executive In Silico AOP Dossier (PDF)",
+            label="📄 Download Executive In Silico AOP Dossier (PDF)",
             data=generate_executive_aop_pdf(res),
-            file_name=f"Executive_AOP_Dossier_{res['Input']}.pdf",
+            file_name=f"Executive_AOP_Dossier_{clean_target_name}.pdf",
             mime="application/pdf",
             type="primary",
-            width="stretch"
+            width="stretch",
+            key=f"btn_exec_pdf_{clean_target_name}"
         )
     with col_pdf2:
         qprf_pdf_bytes = generate_qprf_pdf(res)
         st.download_button(
-            label=f"📑 Download OECD GL 497 Formal QPRF Dossier (PDF)",
+            label="📑 Download OECD GL 497 Formal QPRF Dossier (PDF)",
             data=qprf_pdf_bytes,
-            file_name=f"OECD_QPRF_Dossier_{res['Input']}.pdf",
+            file_name=f"OECD_QPRF_Dossier_{clean_target_name}.pdf",
             mime="application/pdf",
-            width="stretch"
+            width="stretch",
+            key=f"btn_qprf_pdf_{clean_target_name}"
         )
 
 
