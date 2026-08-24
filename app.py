@@ -1423,7 +1423,32 @@ def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Paragraph(f"<b>Digital SHA-256 Audit Seal:</b> <font face='Courier' size=6.5>{res['Audit_ID']}</font> | <b>Determination:</b> {res['QA_SignOff']}", cell_norm))
     story.append(Paragraph("<b>Benchmark References:</b> 1. OECD Guideline 497 (2021); 2. OpenMM Molecular Dynamics Suite; 3. SARA-ICE Human PoD (NIEHS/NICEATM 2023).", cell_norm))
 
+    
+    if res.get("HITL_Override_Applied"):
+        story.append(Paragraph("<b>4. Expert Human-in-the-Loop (HITL) Regulatory Review</b>", sec_heading_style if "sec_heading_style" in locals() else ParagraphStyle('Heading', fontSize=12, leading=14, spaceAfter=6)))
+        hitl_rows = [
+            [Paragraph("<b>Status:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph("Expert Potency Override & Borderline Resolution Applied", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))],
+            [Paragraph("<b>Automated Precautionary Call:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph(f"{res.get('OECD_497_Call', 'N/A')} ({res.get('GHS_Category', 'N/A')})", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))],
+            [Paragraph("<b>Adjudicated Toxicologist Call:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph(f"<b>{res.get('HITL_Final_Call', 'N/A')}</b>", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))],
+            [Paragraph("<b>Regulatory Justification:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph(f"{res.get('HITL_Justification', 'N/A')}", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))]
+        ]
+        t_hitl = Table(hitl_rows, colWidths=[150, 390])
+        t_hitl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#fff8e7')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#f39c12')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#fed7aa')),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(t_hitl)
+        story.append(Spacer(1, 10))
+    
     doc.build(story)
+
     return buffer.getvalue()
 
 
@@ -1514,7 +1539,32 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Paragraph(f"<b>Audit Signature Hash:</b> <font face='Courier' size=7>{res['Audit_ID']}</font>", c_style))
     story.append(Paragraph(f"<b>QA Determination:</b> {res['QA_SignOff']} | Created by <b>Dr. Rahul Anant Date</b> with <b>Gemini AI</b>", c_style))
 
+    
+    if res.get("HITL_Override_Applied"):
+        story.append(Paragraph("<b>4. Expert Human-in-the-Loop (HITL) Regulatory Review</b>", sec_heading_style if "sec_heading_style" in locals() else ParagraphStyle('Heading', fontSize=12, leading=14, spaceAfter=6)))
+        hitl_rows = [
+            [Paragraph("<b>Status:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph("Expert Potency Override & Borderline Resolution Applied", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))],
+            [Paragraph("<b>Automated Precautionary Call:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph(f"{res.get('OECD_497_Call', 'N/A')} ({res.get('GHS_Category', 'N/A')})", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))],
+            [Paragraph("<b>Adjudicated Toxicologist Call:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph(f"<b>{res.get('HITL_Final_Call', 'N/A')}</b>", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))],
+            [Paragraph("<b>Regulatory Justification:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
+             Paragraph(f"{res.get('HITL_Justification', 'N/A')}", cell_norm if "cell_norm" in locals() else ParagraphStyle('N', fontSize=9))]
+        ]
+        t_hitl = Table(hitl_rows, colWidths=[150, 390])
+        t_hitl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#fff8e7')),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#f39c12')),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#fed7aa')),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(t_hitl)
+        story.append(Spacer(1, 10))
+    
     doc.build(story)
+
     return buffer.getvalue()
 
 
@@ -1821,7 +1871,8 @@ def render_dashboard_cards(res: Dict[str, Any]):
 
     col_pdf1, col_pdf2 = st.columns(2)
     with col_pdf1:
-        exec_pdf_bytes = generate_executive_aop_pdf(res)
+        exec_safe_cas_name = str(res.get('Input', res.get('Resolved_Name', 'Target_Molecule'))).replace('/', '_').replace(' ', '_')
+        pdf_bytes = generate_executive_aop_pdf(res)
         st.download_button(
             label=f"📄 Download Executive In Silico AOP Dossier (PDF)",
             data=exec_pdf_bytes,
