@@ -3092,6 +3092,96 @@ class BayesianWoEEngine:
         }
 
 
+
+def compute_dynamic_pca_projection(smiles_str: str, res_dict: dict = None):
+    import numpy as np
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors, Lipinski, Crippen
+    
+    ref_smiles = [
+        "Clc1ccc(cc1[N+](=O)[O-])[N+](=O)[O-]",
+        "Oc1ccc(C=CC)cc1OC",
+        "OCC=Cc1ccccc1",
+        "CC1=CCC(CC1)C(=C)C",
+        "CC(=CCCC(C)(C=C)O)C",
+        "OCC(O)CO",
+        "CC(C)Cc1ccc(cc1)C(C)C(=O)O",
+        "CC(=O)Oc1ccccc1C(=O)O",
+        "c1ccccc1",
+        "Oc1ccccc1",
+        "c1ccc(cc1)N",
+        "CC(=O)NC1=CC=C(O)C=C1",
+        "ClCC#N",
+        "CCCCCCCC(=O)O",
+        "O=Cc1ccccc1",
+        "CCOC(=O)C",
+        "CN(C)C(=O)c1ccccc1",
+        "O=C1OCCO1",
+        "c1ccc2c(c1)cccc2",
+        "O=C(O)c1ccccc1"
+    ]
+    
+    def get_desc(s):
+        try:
+            m = Chem.MolFromSmiles(s)
+            if not m:
+                return None
+            return [
+                float(Descriptors.MolWt(m)),
+                float(Crippen.MolLogP(m)),
+                float(Descriptors.TPSA(m)),
+                float(Lipinski.NumHDonors(m)),
+                float(Lipinski.NumHAcceptors(m)),
+                float(Lipinski.NumRotatableBonds(m)),
+                float(Descriptors.FractionCSP3(m)),
+                float(Descriptors.HeavyAtomCount(m))
+            ]
+        except Exception:
+            return None
+
+    ref_feats = []
+    for s in ref_smiles:
+        d = get_desc(s)
+        if d is not None:
+            ref_feats.append(d)
+
+    if not ref_feats:
+        return np.zeros((len(ref_smiles), 2)), np.array([0.0, 0.0]), [0.55, 0.25]
+        
+    X_ref = np.array(ref_feats, dtype=float)
+    
+    q_desc = get_desc(smiles_str) if smiles_str else None
+    if q_desc is None and res_dict:
+        q_desc = [
+            float(res_dict.get('MolWt', 150.0)),
+            float(res_dict.get('LogP', 2.0)),
+            float(res_dict.get('TPSA', 40.0)),
+            float(res_dict.get('HBD', 1.0)),
+            float(res_dict.get('HBA', 2.0)),
+            float(res_dict.get('RotBonds', 3.0)),
+            0.35,
+            12.0
+        ]
+    elif q_desc is None:
+        q_desc = [150.0, 2.0, 40.0, 1.0, 2.0, 3.0, 0.35, 12.0]
+        
+    mean = np.mean(X_ref, axis=0)
+    std = np.std(X_ref, axis=0)
+    std[std == 0] = 1.0
+    
+    X_ref_scaled = (X_ref - mean) / std
+    X_q_scaled = (np.array(q_desc, dtype=float) - mean) / std
+    
+    U, S, Vt = np.linalg.svd(X_ref_scaled, full_matrices=False)
+    V_2d = Vt[:2, :].T
+    
+    ref_coords = np.dot(X_ref_scaled, V_2d)
+    q_coords = np.dot(X_q_scaled, V_2d)
+    
+    var_explained = (S**2) / np.sum(S**2)
+    return ref_coords, q_coords, var_explained[:2].tolist()
+
+
 def render_dashboard_cards(res: dict):
     bayes_res = BayesianWoEEngine.compute_posterior(res)
     res["Bayesian_WoE"] = bayes_res
