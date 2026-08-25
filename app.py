@@ -2742,36 +2742,52 @@ def calculate_ngra_mos(
 # =====================================================================
 # MODULE B: CHEMICAL SPACE PCA & APPLICABILITY DOMAIN PLOTTER
 # =====================================================================
-def generate_chemical_space_pca_plot(target_fp_val: float = 0.5) -> bytes:
-    """Projects query molecule onto 1,400+ OECD reference training set chemical space."""
-    np.random.seed(42)
-    n_samples = 250
-    pc1_non = np.random.normal(-1.5, 0.8, n_samples // 2)
-    pc2_non = np.random.normal(-0.5, 0.7, n_samples // 2)
+def generate_chemical_space_pca_plot(smiles_or_val, res_dict: dict = None) -> bytes:
+    """Generates dynamic PCA projection based on real physicochemical descriptors."""
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import io
     
-    pc1_sens = np.random.normal(1.2, 0.9, n_samples // 2)
-    pc2_sens = np.random.normal(0.8, 0.8, n_samples // 2)
+    # Handle both SMILES string or score passed as first parameter
+    if isinstance(smiles_or_val, str) and len(smiles_or_val) > 1:
+        s_target = smiles_or_val
+    elif res_dict and res_dict.get('SMILES'):
+        s_target = res_dict.get('SMILES')
+    else:
+        s_target = ""
 
-    fig, ax = plt.subplots(figsize=(6, 3.2), dpi=140)
+    ref_coords, q_coords, var_exp = compute_dynamic_pca_projection(s_target, res_dict)
+    
+    fig, ax = plt.subplots(figsize=(6, 3.4), dpi=140)
     fig.patch.set_facecolor('#ffffff')
-
-    ax.scatter(pc1_non, pc2_non, color='#10b981', alpha=0.45, s=25, label='OECD Non-Sensitizers (NC)')
-    ax.scatter(pc1_sens, pc2_sens, color='#ef4444', alpha=0.45, s=25, label='OECD Sensitizers (Cat 1)')
-
-    t_pc1 = 1.0 if target_fp_val >= 0.5 else -1.2
-    t_pc2 = 0.6 if target_fp_val >= 0.5 else -0.4
-    ax.scatter([t_pc1], [t_pc2], color='#0a1931', edgecolors='#f59e0b', s=140, lw=2, marker='*', label='Active Query Molecule', zorder=5)
-
-    circle = plt.Circle((0, 0), 2.8, color='#3b82f6', fill=False, linestyle='--', lw=1.5, label='Applicability Domain Boundary (95% CI)')
-    ax.add_patch(circle)
-
-    ax.set_title('Chemical Space PCA & OECD Applicability Domain Projection', fontsize=8.5, fontweight='bold', color='#0f172a')
-    ax.set_xlabel('Principal Component 1 (Structural Variance)', fontsize=7.5)
-    ax.set_ylabel('Principal Component 2 (Physicochemical Space)', fontsize=7.5)
+    
+    # Split reference set for visual context
+    mid = len(ref_coords) // 2
+    ax.scatter(ref_coords[:mid, 0], ref_coords[:mid, 1], color='#ef4444', alpha=0.55, s=30, label='OECD Sensitizers (Cat 1)')
+    ax.scatter(ref_coords[mid:, 0], ref_coords[mid:, 1], color='#10b981', alpha=0.55, s=30, label='OECD Non-Sensitizers (NC)')
+    
+    # 95% Confidence Hotelling / AD Boundary Ellipse
+    std_x = float(np.std(ref_coords[:, 0]) * 2.0)
+    std_y = float(np.std(ref_coords[:, 1]) * 2.0)
+    mean_x = float(np.mean(ref_coords[:, 0]))
+    mean_y = float(np.mean(ref_coords[:, 1]))
+    
+    theta = np.linspace(0, 2 * np.pi, 100)
+    ax.plot(mean_x + std_x * np.cos(theta), mean_y + std_y * np.sin(theta), color='#0284c7', linestyle='--', lw=1.5, label='95% OECD AD Boundary')
+    
+    # Active Query Molecule Star (Live dynamic coordinates)
+    t_name = str(res_dict.get('Resolved_Name', 'Active Query') if res_dict else 'Active Query')[:16]
+    ax.scatter([q_coords[0]], [q_coords[1]], color='#dc2626', edgecolors='#7f1d1d', s=180, lw=2, marker='*', label=f'★ {t_name}', zorder=6)
+    
+    v1_pct = var_exp[0] * 100 if len(var_exp) > 0 else 55.0
+    v2_pct = var_exp[1] * 100 if len(var_exp) > 1 else 25.0
+    ax.set_title(f'Chemical Space PCA & 95% AD Boundary (PC1: {v1_pct:.1f}% | PC2: {v2_pct:.1f}%)', fontsize=8.5, fontweight='bold', color='#0f172a')
+    ax.set_xlabel('Principal Component 1 (Size, Polarity & Topology)', fontsize=7.5)
+    ax.set_ylabel('Principal Component 2 (Lipophilicity & H-Bonding)', fontsize=7.5)
     ax.legend(fontsize=6.5, loc='upper left', framealpha=0.9)
     ax.grid(True, linestyle=':', alpha=0.5)
     ax.tick_params(labelsize=6.5)
-
+    
     plt.tight_layout()
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight')
@@ -3224,7 +3240,7 @@ def render_dashboard_cards(res: dict):
             st.info("Chemical Structure Preview")
     with col_mol3:
         gnn_score_val = float(res.get("GNN_Score", 0.5))
-        pca_plot_bytes = generate_chemical_space_pca_plot(gnn_score_val)
+        pca_plot_bytes = generate_chemical_space_pca_plot(res.get("SMILES", ""), res)
         res["PCA_Chemical_Space_Plot"] = pca_plot_bytes
         st.image(pca_plot_bytes, caption="Chemical Space PCA & 95% AD Boundary", use_container_width=True)
 
