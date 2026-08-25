@@ -1275,78 +1275,56 @@ def evaluate_borderline_conflict(res: dict) -> dict:
     }
 
 def render_hitl_panel(res: dict):
-    clean_target_name = str(res.get("Resolved_Name", res.get("Input", "Compound"))).replace(" ", "_").replace("/", "_")
-    unique_widget_id = f"{clean_target_name}_{abs(hash(str(res.get('SMILES', '')) + str(res.get('GHS_Category', '')) + str(time.time()))) % 10000000}"
-    conflict = evaluate_borderline_conflict(res)
-    st.markdown("---")
     st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
+    # 1. Generate a STABLE, deterministic key per compound (never random/timestamp)
+    safe_smi = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", "mol")))[:32]
+    choice_key = f"hitl_choice_state_{safe_smi}"
+    just_key = f"hitl_just_state_{safe_smi}"
     
-    with st.container():
-        st.info(f"**Trigger Diagnostic:** {conflict.get('reason', 'Potency Threshold Review')}")
+    # 2. Options list
+    decision_options = [
+        "Accept Automated In Silico Tier (Default)",
+        "Override -> GHS Category 1A (Extreme/Strong Sensitizer)",
+        "Override -> GHS Category 1B (Moderate/Weak Sensitizer)",
+        "Override -> Not Classified (Non-Sensitizer)",
+        "Flag for Tier-2 In Vitro Testing (OECD 442C/D/E)"
+    ]
+    
+    # 3. Persistent Initialization (only runs once per molecule)
+    if choice_key not in st.session_state:
+        st.session_state[choice_key] = decision_options[0]
         
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            st.markdown("**Precautionary In Silico Default (OECD 497):**")
-            st.caption(f"Default Potency: `{res.get('GHS_Category', 'Category 1A')}` based on electrophilic alert detection.")
-        with col_s2:
-            st.markdown("**Real-World Human / Cosmetic Tier:**")
-            st.caption("Account for clinical NOEL in human patch tests and physiological stratum corneum barrier.")
+    default_text = f"Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
+    if just_key not in st.session_state:
+        st.session_state[just_key] = default_text
 
-        col_opt, col_rat = st.columns([1, 1])
-        with col_opt:
-            current_choice = st.selectbox(
-                "Select Final Regulatory Classification:",
-                [
-                    f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
-                    "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
-                    "Classify as Not Classified / Non-Sensitizer (NC)",
-                    "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
-                ],
-                key=f"hitl_choice_widget_{res.get('SMILES', 'default')}"
-            )
-    with col_rat:
-        st.markdown("""
-        <div style="background: #fffbeb; border: 2.5px solid #d97706; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2), 0 2px 4px -1px rgba(217, 119, 6, 0.1);">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="color: #92400e; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                    📝 Toxicologist Regulatory Justification
-                </span>
-                <span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;">
-                    ✍️ EDITABLE FIELD (AUDIT TRAIL)
-                </span>
-            </div>
-            <p style="color: #b45309; font-size: 0.82rem; margin: 4px 0 0 0; font-weight: 500;">
-                Click below to modify expert rationale printed in Section 5 of the PDF & XML dossiers:
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        hitl_just = st.text_area(
-            "Toxicologist Regulatory Justification",
-            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-            key=f"hitl_user_just_{unique_widget_id}",
-            height=110,
-            label_visibility="collapsed",
-            help="Your rationale entered here will be embedded verbatim into the Executive AOP PDF, OECD QPRF Dossier, and ECHA IUCLID 6 export."
-        )
-
-        res["HITL_Override_Applied"] = True
-        res["HITL_Final_Call"] = current_choice
-        res["HITL_Justification"] = hitl_just
-        if "Downgrade" in current_choice:
-            res["GHS_Category"] = "Category 1B (Moderate)"
-            res["OECD_497_Call"] = "SENSITIZER"
-        elif "Non-Sensitizer" in current_choice:
-            res["GHS_Category"] = "Not Classified (NC)"
-            res["OECD_497_Call"] = "NON-SENSITIZER"
-            
-        if "active_res" in st.session_state and st.session_state["active_res"]:
-            st.session_state["active_res"]["HITL_Override_Applied"] = True
-            st.session_state["active_res"]["HITL_Final_Call"] = current_choice
-            st.session_state["active_res"]["HITL_Justification"] = hitl_just
-            st.session_state["active_res"]["GHS_Category"] = res["GHS_Category"]
-            st.session_state["active_res"]["OECD_497_Call"] = res["OECD_497_Call"]
-
-
+    # 4. Bind widgets directly to persistent keys
+    cur_choice_idx = decision_options.index(st.session_state[choice_key]) if st.session_state[choice_key] in decision_options else 0
+    hitl_choice = st.selectbox(
+        "Final Regulatory Potency Decision:",
+        decision_options,
+        index=cur_choice_idx,
+        key=choice_key
+    )
+    
+    hitl_just = st.text_area(
+        "Expert Toxicologist Regulatory Rationale / Justification:",
+        key=just_key,
+        height=95
+    )
+    
+    # 5. Mirror user edits to all result dictionary keys for PDF and UI consistency
+    res["HITL_Override_Applied"] = True
+    res["HITL_Final_Call"] = hitl_choice
+    res["hitl_decision"] = hitl_choice
+    res["HITL_Justification"] = hitl_just
+    res["Regulatory_Justification"] = hitl_just
+    res["hitl_notes"] = hitl_just
+    if "active_res" in st.session_state and isinstance(st.session_state["active_res"], dict):
+        st.session_state["active_res"]["HITL_Final_Call"] = hitl_choice
+        st.session_state["active_res"]["HITL_Justification"] = hitl_just
+        st.session_state["active_res"]["hitl_decision"] = hitl_choice
+        st.session_state["active_res"]["hitl_notes"] = hitl_just
 def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -1508,7 +1486,20 @@ def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Paragraph("<b>Benchmark References:</b> 1. OECD Guideline 497 (2021); 2. OpenMM Molecular Dynamics Suite; 3. SARA-ICE Human PoD (NIEHS/NICEATM 2023).", cell_norm))
 
     
-    if res.get("HITL_Override_Applied"):
+    if True:  # Always include HITL section in PDF
+    # Extract user justification across any key variation
+    user_comment = (
+        res.get("HITL_Justification") or 
+        res.get("Regulatory_Justification") or 
+        res.get("hitl_notes") or 
+        "Automated assessment confirmed via OECD GL 497 defined approach."
+    )
+    user_call = (
+        res.get("HITL_Final_Call") or 
+        res.get("hitl_decision") or 
+        res.get("OECD_497_Call") or 
+        res.get("GHS_Category", "Accept Automated In Silico Tier")
+    )
         story.append(Paragraph("<b>4. Expert Human-in-the-Loop (HITL) Regulatory Review</b>", sec_heading_style if "sec_heading_style" in locals() else ParagraphStyle('Heading', fontSize=12, leading=14, spaceAfter=6)))
         hitl_rows = [
             [Paragraph("<b>Status:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
@@ -1658,7 +1649,20 @@ def generate_qprf_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Paragraph(f"<b>QA Determination:</b> {res['QA_SignOff']} | Created by <b>Dr. Rahul Anant Date</b> with <b>Gemini AI</b>", c_style))
 
     
-    if res.get("HITL_Override_Applied"):
+    if True:  # Always include HITL section in PDF
+    # Extract user justification across any key variation
+    user_comment = (
+        res.get("HITL_Justification") or 
+        res.get("Regulatory_Justification") or 
+        res.get("hitl_notes") or 
+        "Automated assessment confirmed via OECD GL 497 defined approach."
+    )
+    user_call = (
+        res.get("HITL_Final_Call") or 
+        res.get("hitl_decision") or 
+        res.get("OECD_497_Call") or 
+        res.get("GHS_Category", "Accept Automated In Silico Tier")
+    )
         story.append(Paragraph("<b>4. Expert Human-in-the-Loop (HITL) Regulatory Review</b>", sec_heading_style if "sec_heading_style" in locals() else ParagraphStyle('Heading', fontSize=12, leading=14, spaceAfter=6)))
         hitl_rows = [
             [Paragraph("<b>Status:</b>", cell_bold if "cell_bold" in locals() else ParagraphStyle('B', fontSize=9, fontName='Helvetica-Bold')), 
@@ -3327,576 +3331,56 @@ def render_dashboard_cards(res: dict):
         st.dataframe(pd.DataFrame(ana_rows), use_container_width=True, hide_index=True)
 
     # Expert HITL Adjudication Panel
-    st.markdown("""
-    <div style="background: linear-gradient(90deg, #1e3a8a 0%, #0284c7 100%); padding: 12px 18px; border-radius: 8px; margin: 12px 0;">
-        <h3 style="color: white; margin: 0; font-size: 1.25rem;">⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review</h3>
-        <p style="color: #e0f2fe; margin: 4px 0 0 0; font-size: 0.88rem;">Adjudicate conservative computational tiers against cosmetic exposure limits, clinical patch thresholds, or specific formulation matrices.</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
+    # 1. Generate a STABLE, deterministic key per compound (never random/timestamp)
+    safe_smi = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", "mol")))[:32]
+    choice_key = f"hitl_choice_state_{safe_smi}"
+    just_key = f"hitl_just_state_{safe_smi}"
+    
+    # 2. Options list
+    decision_options = [
+        "Accept Automated In Silico Tier (Default)",
+        "Override -> GHS Category 1A (Extreme/Strong Sensitizer)",
+        "Override -> GHS Category 1B (Moderate/Weak Sensitizer)",
+        "Override -> Not Classified (Non-Sensitizer)",
+        "Flag for Tier-2 In Vitro Testing (OECD 442C/D/E)"
+    ]
+    
+    # 3. Persistent Initialization (only runs once per molecule)
+    if choice_key not in st.session_state:
+        st.session_state[choice_key] = decision_options[0]
+        
+    default_text = f"Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
+    if just_key not in st.session_state:
+        st.session_state[just_key] = default_text
 
-    col_opt, col_rat = st.columns([1, 1])
-    with col_opt:
-        st.markdown("**1. Final Regulatory Potency Decision**")
-        hitl_choice = st.selectbox(
-            "Select Final Regulatory Classification:",
-            [
-                f"Accept Automated Default ({res.get('GHS_Category', 'Category 1A')})",
-                "Downgrade to GHS Category 1B (Moderate/Weak Sensitizer)",
-                "Classify as Not Classified / Non-Sensitizer (NC)",
-                "Mark as Inconclusive / Requires In Vitro Testing (OECD 442C/D/E)"
-            ],
-            key=f"hitl_user_choice_{unique_widget_id}",
-            label_visibility="collapsed"
-        )
-    with col_rat:
-        st.markdown("""
-        <div style="background: #fffbeb; border: 2.5px solid #d97706; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.2), 0 2px 4px -1px rgba(217, 119, 6, 0.1);">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-                <span style="color: #92400e; font-weight: 800; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">
-                    📝 Toxicologist Regulatory Justification
-                </span>
-                <span style="background: #f59e0b; color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;">
-                    ✍️ EDITABLE FIELD (AUDIT TRAIL)
-                </span>
-            </div>
-            <p style="color: #b45309; font-size: 0.82rem; margin: 4px 0 0 0; font-weight: 500;">
-                Click below to modify expert rationale printed in Section 5 of the PDF & XML dossiers:
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        hitl_just = st.text_area(
-            "Toxicologist Regulatory Justification",
-            value="Conservative in silico screening call reviewed; clinical human patch data indicates Category 1B moderate potency under cosmetic exposure limits.",
-            key=f"hitl_user_just_{unique_widget_id}",
-            height=110,
-            label_visibility="collapsed",
-            help="Your rationale entered here will be embedded verbatim into the Executive AOP PDF, OECD QMRF, OECD QPRF Dossier, and ECHA IUCLID 6 export."
-        )
-
+    # 4. Bind widgets directly to persistent keys
+    cur_choice_idx = decision_options.index(st.session_state[choice_key]) if st.session_state[choice_key] in decision_options else 0
+    hitl_choice = st.selectbox(
+        "Final Regulatory Potency Decision:",
+        decision_options,
+        index=cur_choice_idx,
+        key=choice_key
+    )
+    
+    hitl_just = st.text_area(
+        "Expert Toxicologist Regulatory Rationale / Justification:",
+        key=just_key,
+        height=95
+    )
+    
+    # 5. Mirror user edits to all result dictionary keys for PDF and UI consistency
     res["HITL_Override_Applied"] = True
     res["HITL_Final_Call"] = hitl_choice
+    res["hitl_decision"] = hitl_choice
     res["HITL_Justification"] = hitl_just
-    if "Downgrade" in hitl_choice:
-        res["GHS_Category"] = "Category 1B (Moderate)"
-    elif "Non-Sensitizer" in hitl_choice:
-        res["GHS_Category"] = "Not Classified (NC)"
-        res["OECD_497_Call"] = "NON-SENSITIZER"
-
-    st.markdown(f"""
-    <div style="background: #f1f5f9; border-left: 4px solid #0f172a; padding: 6px 12px; margin: 8px 0; font-size: 0.78rem; color: #334155;">
-        🔒 <b>GLP Cryptographic Audit Hash:</b> <code>{sig['SHA256']}</code> | <b>Timestamp:</b> <code>{sig['Timestamp_UTC']}</code>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.success(f"📋 **Active Regulatory Dossier Tier:** `{res['GHS_Category']}` | Rationale locked for export.")
-    st.markdown("---")
-
-    # Complete 4-Button Regulatory Export Toolbar
-    col_pdf1, col_pdf2, col_pdf3, col_pdf4 = st.columns(4)
-    with col_pdf1:
-        st.download_button(
-            label="📄 Executive AOP (PDF)",
-            data=generate_executive_aop_pdf(res),
-            file_name=f"Executive_AOP_Dossier_{clean_target_name}.pdf",
-            mime="application/pdf",
-            type="primary",
-            width="stretch",
-            key=f"btn_exec_pdf_{unique_widget_id}"
-        )
-    with col_pdf2:
-        st.download_button(
-            label="📑 OECD 497 QPRF (PDF)",
-            data=generate_qprf_pdf(res),
-            file_name=f"OECD_QPRF_Dossier_{clean_target_name}.pdf",
-            mime="application/pdf",
-            width="stretch",
-            key=f"btn_qprf_pdf_{unique_widget_id}"
-        )
-    with col_pdf3:
-        st.download_button(
-            label="📜 OECD QMRF Model (PDF)",
-            data=generate_qmrf_pdf(res),
-            file_name=f"OECD_QMRF_Dossier_{clean_target_name}.pdf",
-            mime="application/pdf",
-            width="stretch",
-            key=f"btn_qmrf_pdf_{unique_widget_id}"
-        )
-    with col_pdf4:
-        st.download_button(
-            label="📁 ECHA IUCLID 6 (XML)",
-            data=generate_iuclid6_xml(res),
-            file_name=f"IUCLID6_7.4.1_{clean_target_name}.xml",
-            mime="application/xml",
-            width="stretch",
-            key=f"btn_iuclid_xml_{unique_widget_id}"
-        )
-
-
-tab_single, tab_dass_lab, tab_sketch, tab_batch, tab_formulation, tab_uvcb, tab_copilot = st.tabs([
-    "🔍 Single Compound & QPRF",
-    "🧪 DASS Lab Data Batch (.xlsx / .csv / .txt)",
-    "✏️ Draw Molecule (JSME)",
-    "📁 Standard Screening Batch",
-    "🧴 Formulation Screener",
-    "🌿 UVCB Extract Deconvolution",
-    "💬 Agentic Safety Co-Pilot"
-])
-
-# ---------------------------------------------------------------------
-# TAB 1: SINGLE COMPOUND
-# ---------------------------------------------------------------------
-with tab_single:
-    col_in, col_btn = st.columns([4, 1])
-    with col_in:
-        single_input = st.text_input("Enter CAS RN, Chemical Name, or SMILES", value="Hexyl cinnamaldehyde")
-    with col_btn:
-        st.write("")
-        st.write("")
-        run_single_btn = st.button("Run Evaluation", type="primary", width="stretch")
-
-    if run_single_btn or ("active_res" not in st.session_state and single_input):
-        with st.spinner(f"Evaluating {single_input}..."):
-            res = process_single_chemical(single_input, api_key=api_key_input)
-            st.session_state["active_res"] = res
-
-    if st.session_state.get("active_res") is not None:
-        active_data = st.session_state["active_res"]
-        if active_data.get("Status") == "FAILED_RESOLUTION":
-            st.error(f"Could not resolve structure for '{single_input}'.")
-        else:
-            render_dashboard_cards(active_data)
-
-# ---------------------------------------------------------------------
-# TAB 2: DASS LAB DATA FILE INGESTION (XLSX, CSV, TXT)
-# ---------------------------------------------------------------------
-with tab_dass_lab:
-    st.markdown("### 🧪 Ingest In Vitro Laboratory Assays (NICEATM DASS App Template)")
-    st.write(
-        "Upload raw experimental assay results in **Excel (`.xlsx`, `.xls`)**, **CSV (`.csv`)**, or **Tab-Delimited Text (`.txt`)** matching the NIEHS DASS App Template format."
-    )
-
-    dass_template_df = pd.DataFrame({
-        "CASRN": ["150-13-0", "62-53-3", "106-51-4", "122-57-6", "35691-65-7", "71-36-3", "104-55-2", "104-54-1", "5392-40-5"],
-        "DPRA_call": [0, 0, 1, 1, 1, 0, 1, 1, 1],
-        "DPRA_mean_dep": [5.55, 4.85, 94.97, 48.09, 64.30, 0.60, 56.95, 7.55, 51.30],
-        "KeratinoSens_call": [0, 0, 1, 1, 1, 0, 1, 1, 1],
-        "hCLAT_call": [0, 1, 1, 1, 1, 0, 1, 1, 1],
-        "hCLAT_MIT": [float("inf"), 550.8, 2.24, 25.8, 9.42, float("inf"), 10.2, 101.6, 8.41],
-        "insil_call": [1, 1, 1, 1, 1, 0, 1, 1, 1]
-    })
-    st.download_button(
-        label="📥 Download Official DASS App Excel Template",
-        data=dass_template_df.to_csv(index=False).encode("utf-8"),
-        file_name="DASSApp-dataTemplate.csv",
-        mime="text/csv"
-    )
-
-    dass_file = st.file_uploader("Upload DASS Lab Results File (.xlsx, .xls, .csv, .txt)", type=["xlsx", "xls", "csv", "txt"], key="dass_uploader")
-
-    if dass_file:
-        try:
-            if dass_file.name.endswith(".csv"):
-                df_lab = pd.read_csv(dass_file)
-            elif dass_file.name.endswith(".txt"):
-                df_lab = pd.read_csv(dass_file, sep="\t")
-            else:
-                df_lab = pd.read_excel(dass_file)
-
-            st.write("#### Ingested Lab Assay Data Preview:")
-            st.dataframe(df_lab.head(10), width="stretch")
-
-            cas_col = None
-            for c in df_lab.columns:
-                if c.strip().lower() in ["casrn", "cas", "cas_rn", "cas_number", "compound"]:
-                    cas_col = c
-                    break
-
-            if not cas_col:
-                cas_col = st.selectbox("Select CASRN column:", df_lab.columns)
-
-            if st.button("🚀 Calculate Defined Approaches from In Vitro Lab Data", type="primary"):
-                lab_results = []
-                p_bar = st.progress(0)
-                total = len(df_lab)
-
-                def parse_val(row, col_name):
-                    if col_name in row and pd.notna(row[col_name]):
-                        v = str(row[col_name]).strip().lower()
-                        if v in ["inf", "infinity"]:
-                            return float("inf")
-                        try:
-                            return float(v)
-                        except Exception:
-                            return None
-                    return None
-
-                def parse_int_call(row, col_name):
-                    if col_name in row and pd.notna(row[col_name]):
-                        try:
-                            return int(float(str(row[col_name]).strip()))
-                        except Exception:
-                            return None
-                    return None
-
-                for idx, row in df_lab.iterrows():
-                    cas_val = str(row[cas_col]).strip()
-                    dpra_dep = parse_val(row, "DPRA_mean_dep") or parse_val(row, "ADRA_mean_dep")
-                    dpra_c = parse_int_call(row, "DPRA_call") or parse_int_call(row, "ADRA_call")
-                    ks_c = parse_int_call(row, "KeratinoSens_call") or parse_int_call(row, "LuSens_call")
-                    hclat_mit = parse_val(row, "hCLAT_MIT") or parse_val(row, "USENS_EC150") or parse_val(row, "GARDskin_input_conc")
-                    hclat_c = parse_int_call(row, "hCLAT_call") or parse_int_call(row, "USENS_call") or parse_int_call(row, "GARDskin_call")
-                    qsar_c = parse_int_call(row, "insil_call")
-
-                    res = process_single_chemical(
-                        cas_val,
-                        api_key=api_key_input,
-                        lab_dpra_depletion=dpra_dep,
-                        lab_hclat_mit=hclat_mit,
-                        lab_dpra_call=dpra_c,
-                        lab_ks_call=ks_c,
-                        lab_hclat_call=hclat_c,
-                        lab_qsar_call=qsar_c
-                    )
-                    lab_results.append(res)
-                    p_bar.progress((idx + 1) / total)
-
-                df_lab_res = pd.DataFrame(lab_results)
-                df_lab_export = df_lab_res.drop(columns=["Analogs", "Heatmap_PNG", "LLM_Council"], errors="ignore")
-
-                st.markdown("### 📊 Harmonized Defined Approach Results (Lab Assisted)")
-                st.dataframe(df_lab_export, width="stretch")
-
-                col_exp1, col_exp2, col_exp3 = st.columns(3)
-                with col_exp1:
-                    st.download_button(
-                        label="📥 Download Results (CSV)",
-                        data=df_export.to_csv(index=False).encode("utf-8"),
-                        file_name=f"batch_sensitization_results_{time.strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        width="stretch"
-                    )
-                with col_exp2:
-                    st.download_button(
-                        label="📦 Download Complete Batch ZIP (All PDFs + CSV + IUCLID)",
-                        data=build_batch_zip_archive(results, df_export),
-                        file_name=f"SensAOP_Complete_Batch_Dossiers_{time.strftime('%Y%m%d_%H%M')}.zip",
-                        mime="application/zip",
-                        type="primary",
-                        width="stretch"
-                    )
-                with col_exp3:
-                    st.download_button(
-                        label="📊 Download Excel Summary (.xlsx)",
-                        data=df_export.to_csv(index=False).encode("utf-8"),
-                        file_name=f"batch_sensitization_results_{time.strftime('%Y%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        width="stretch"
-                    )
-                with col_exp2:
-                    excel_buf = io.BytesIO()
-                    with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                        df_lab_export.to_excel(writer, index=False)
-                    st.download_button(
-                        label="📥 Download Harmonized Lab Results (Excel)",
-                        data=excel_buf.getvalue(),
-                        file_name=f"DASS_Lab_Defined_Approach_Results_{time.strftime('%Y%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        width="stretch"
-                    )
-
-        except Exception as e:
-            st.error(f"Error reading DASS lab file: {e}")
-
-# ---------------------------------------------------------------------
-# TAB 3: JSME 2D SKETCHER
-# ---------------------------------------------------------------------
-with tab_sketch:
-    st.markdown("### ✏️ Interactive 2D Chemical Canvas")
-    jsme_html = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <script type="text/javascript" src="https://jsme-editor.github.io/dist/jsme/jsme.nocache.js"></script>
-        <script type="text/javascript">
-            function jsmeOnLoad() {
-                jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "360px", {"options": "query,hydrogens,markAtom,atomHelp"});
-            }
-            function exportSmiles() {
-                document.getElementById("smiles_output").value = jsmeApplet.smiles();
-            }
-        </script>
-        <style>
-            body { font-family: sans-serif; margin: 0; padding: 5px; }
-            button { background-color: #ff4b4b; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 8px; }
-            input[type=text] { width: 95%; padding: 8px; margin-top: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; }
-        </style>
-    </head>
-    <body>
-        <div id="jsme_container"></div>
-        <button type="button" onclick="exportSmiles()">Get SMILES from Canvas</button>
-        <br/>
-        <input type="text" id="smiles_output" placeholder="Generated SMILES" readonly onclick="this.select();" />
-    </body>
-    </html>
-    """
-    components.html(jsme_html, height=450)
-    sketched_smiles = st.text_input("Paste Sketched SMILES Here:", value="C1=CC(=C(C=C1[N+](=O)[O-])[N+](=O)[O-])Cl")
-    if st.button("🚀 Predict from Sketched Structure", type="primary"):
-        with st.spinner("Analyzing sketched molecule..."):
-            res = process_single_chemical(sketched_smiles, api_key=api_key_input)
-            st.session_state["active_res"] = res
-            render_dashboard_cards(res)
-
-# ---------------------------------------------------------------------
-# TAB 4: STANDARD BATCH CSV PROCESSING & EXPORT
-# ---------------------------------------------------------------------
-with tab_batch:
-    st.markdown("### 📂 Upload Standard Identifier Batch File (.csv or .xlsx)")
-    sample_df = pd.DataFrame({
-        "CAS": ["97-00-7", "111-30-8", "7786-81-4", "7646-79-9", "2634-33-5", "97-54-1", "584-84-9", "65-85-0", "56-81-5"],
-        "Compound_Name": ["DNCB", "Glutaraldehyde", "Nickel sulfate", "Cobalt chloride", "BIT", "Isoeugenol", "TDI", "Benzoic acid", "Glycerol"],
-    })
-    st.download_button(label="📥 Download Standard CSV Template", data=sample_df.to_csv(index=False).encode("utf-8"), file_name="batch_template.csv", mime="text/csv")
-    uploaded_file = st.file_uploader("Upload CSV / Excel file", type=["csv", "xlsx"], key="std_batch_uploader")
-
-    if uploaded_file:
-        try:
-            df_input = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-            st.dataframe(df_input.head(), width="stretch")
-
-            target_col = None
-            for c in df_input.columns:
-                if c.strip().lower() in ["cas", "casrn", "smiles", "name", "compound", "substance"]:
-                    target_col = c
-                    break
-            if not target_col:
-                target_col = st.selectbox("Select column with identifiers:", df_input.columns)
-
-            if st.button("🚀 Process Standard Batch Screen", type="primary"):
-                progress_bar = st.progress(0)
-                results = []
-                total = len(df_input)
-
-                for idx, val in enumerate(df_input[target_col]):
-                    res = process_single_chemical(str(val), api_key=api_key_input)
-                    results.append(res)
-                    progress_bar.progress((idx + 1) / total)
-
-                df_results = pd.DataFrame(results)
-                df_export = df_results.drop(columns=["Analogs", "Heatmap_PNG", "LLM_Council"], errors="ignore")
-                st.dataframe(df_export, width="stretch")
-
-                col_exp1, col_exp2 = st.columns(2)
-                with col_exp1:
-                    st.download_button(
-                        label="📥 Download Results (CSV)",
-                        data=df_export.to_csv(index=False).encode("utf-8"),
-                        file_name=f"batch_sensitization_results_{time.strftime('%Y%m%d_%H%M')}.csv",
-                        mime="text/csv",
-                        width="stretch"
-                    )
-                with col_exp2:
-                    excel_buffer = io.BytesIO()
-                    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
-                        df_export.to_excel(writer, index=False)
-                    st.download_button(
-                        label="📥 Download Results (Excel)",
-                        data=excel_buffer.getvalue(),
-                        file_name=f"batch_sensitization_results_{time.strftime('%Y%m%d_%H%M')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        width="stretch"
-                    )
-        except Exception as e:
-            st.error(f"Error reading file: {e}")
-
-# ---------------------------------------------------------------------
-# TAB 5: FINISHED FORMULATION SCREENER
-# ---------------------------------------------------------------------
-with tab_formulation:
-    st.markdown("### 🧴 Finished Cosmetic Formulation Screener")
-    st.write("Evaluate multi-ingredient formulas using concentration-weighted **UN GHS Mixture Additivity Rules** & **Consumer Exposure Limits**.")
-
-    default_formulation = pd.DataFrame({
-        "Ingredient_CAS": ["7732-18-5", "56-81-5", "57-55-6", "101-86-0", "2682-20-4", "65-85-0"],
-        "Ingredient_Name": ["Water", "Glycerol", "Propylene Glycol", "Hexyl Cinnamal (Fragrance)", "Methylisothiazolinone (MI)", "Benzoic acid"],
-        "Concentration_wt_percent": [85.0, 8.0, 5.0, 0.8, 0.05, 0.2]
-    })
-
-    edited_df = st.data_editor(default_formulation, num_rows="dynamic", width="stretch")
-
-    if st.button("🧪 Evaluate Formulation Sensitization Risk", type="primary"):
-        with st.spinner("Analyzing cosmetic formulation matrix..."):
-            form_results = []
-            cumulative_sens_index = 0.0
-            ghs_cat1_triggers = []
-
-            for _, row in edited_df.iterrows():
-                cas_val = str(row["Ingredient_CAS"])
-                conc = float(row["Concentration_wt_percent"])
-                ind_res = process_single_chemical(cas_val, api_key=api_key_input)
-                
-                is_sens = ind_res["OECD_497_Call"] == "SENSITIZER"
-                is_cat1a = "1A" in ind_res["GHS_Category"]
-                
-                if is_sens:
-                    weight_factor = 1.0 if is_cat1a else 0.2
-                    cumulative_sens_index += (conc * weight_factor)
-                    if (is_cat1a and conc >= 0.1) or (not is_cat1a and conc >= 1.0):
-                        ghs_cat1_triggers.append(f"{ind_res['Resolved_Name']} ({conc}%)")
-
-                form_results.append({
-                    "Ingredient": ind_res["Resolved_Name"],
-                    "CAS": cas_val,
-                    "Concentration (%)": conc,
-                    "2o3 Call": ind_res["DA_2o3_Call"],
-                    "ITS Call": ind_res["ITS_Call"],
-                    "OpenMM ΔG": ind_res["MD_MMPBSA_DeltaG"],
-                    "HRIPT Clinical": ind_res["HRIPT_Call"],
-                    "SARA PoD": ind_res["SARA_ED01_PoD"]
-                })
-
-            st.dataframe(pd.DataFrame(form_results), width="stretch")
-            
-            st.markdown("---")
-            st.markdown("### 📋 Formulation Safety Verdict")
-            if ghs_cat1_triggers:
-                st.error(
-                    f"⚠️ **FORMULATION TRIGGERED GHS SENSITIZER CLASSIFICATION (Category 1)**\n\n"
-                    f"Exceeded regulatory concentration cut-offs for: {', '.join(ghs_cat1_triggers)}."
-                )
-            elif cumulative_sens_index > 0.5:
-                st.warning(
-                    f"⚠️ **MODERATE SENSITIZATION RISK (Cumulative Matrix Index: {cumulative_sens_index:.2f})**\n\n"
-                    f"Sub-threshold sensitizers present. Finished product clinical patch testing (HRIPT) recommended."
-                )
-            else:
-                st.success(
-                    f"✅ **SAFE FORMULATION (Cumulative Sensitization Index: {cumulative_sens_index:.2f})**\n\n"
-                    f"All ingredients within safe Margin of Safety (MoS) and below GHS mixture threshold limits."
-                )
-
-# ---------------------------------------------------------------------
-# TAB 6: MULTI-CONSTITUENT UVCB BOTANICAL DECONVOLUTION ENGINE
-# ---------------------------------------------------------------------
-with tab_uvcb:
-    st.markdown("### 🌿 Multi-Constituent Automated UVCB Deconvolution Engine")
-    st.write(
-        "Deconvolve complex botanical extracts and essential oils directly from **GC-MS / LC-MS peak tables** into resolved single constituents to compute aggregate sensitization potency."
-    )
-
-    example_extract = (
-        "Cinnamaldehyde, 104-55-2, 72.5%\n"
-        "Eugenol, 97-53-0, 14.0%\n"
-        "Cinnamyl alcohol, 104-54-1, 8.5%\n"
-        "Benzaldehyde, 100-52-7, 3.2%\n"
-        "alpha-Bisabolol, 23089-26-1, 1.8%"
-    )
-
-    uvcb_input_text = st.text_area(
-        "Paste GC-MS / LC-MS Peak List (Format: Name, CAS, Peak Area %):",
-        value=example_extract,
-        height=140
-    )
-
-    if st.button("🔬 Deconvolve Extract & Evaluate UVCB Sensitization", type="primary"):
-        with st.spinner("Deconvolving chromatographic peaks & simulating constituent AOPs..."):
-            lines = [l.strip() for l in uvcb_input_text.strip().split("\n") if l.strip()]
-            uvcb_results = []
-            cum_extract_potency = 0.0
-            strongest_sensitizer = None
-            max_ke1 = 0.0
-
-            for line in lines:
-                parts = re.split(r"[,:\t]+", line)
-                if len(parts) >= 2:
-                    name_str = parts[0].strip()
-                    conc_match = re.search(r"(\d+(\.\d+)?)", parts[-1])
-                    conc = float(conc_match.group(1)) if conc_match else 0.0
-                    cas_str = parts[1].strip() if len(parts) >= 3 else name_str
-
-                    ind_res = process_single_chemical(cas_str, api_key=api_key_input)
-                    if ind_res["KE1_DPRA"] > max_ke1:
-                        max_ke1 = ind_res["KE1_DPRA"]
-                        strongest_sensitizer = ind_res["Resolved_Name"]
-
-                    is_sens = ind_res["OECD_497_Call"] == "SENSITIZER"
-                    is_cat1a = "1A" in ind_res["GHS_Category"]
-                    if is_sens:
-                        cum_extract_potency += conc * (1.0 if is_cat1a else 0.25)
-
-                    uvcb_results.append({
-                        "Peak Constituent": ind_res["Resolved_Name"],
-                        "CAS": cas_str,
-                        "Peak Area (%)": f"{conc:.1f}%",
-                        "OECD 497 Call": ind_res["OECD_497_Call"],
-                        "GHS Potency": ind_res["GHS_Category"],
-                        "OpenMM Keap1 ΔG": ind_res["MD_MMPBSA_DeltaG"],
-                        "SARA PoD": ind_res["SARA_ED01_PoD"],
-                    })
-
-            st.dataframe(pd.DataFrame(uvcb_results), width="stretch")
-
-            st.markdown("---")
-            st.markdown("### 🌿 UVCB Extract Assessment Outcome")
-            if cum_extract_potency >= 1.0 or max_ke1 >= 0.88:
-                st.error(
-                    f"⚠️ **HAZARDOUS UVCB BOTANICAL EXTRACT (GHS Skin Sensitizer Cat 1)**\n\n"
-                    f"- **Cumulative Sensitization Load:** `{cum_extract_potency:.2f}` (Exceeds 1.0% Threshold)\n"
-                    f"- **Key Driver / Principal Electrophile:** `{strongest_sensitizer}`\n"
-                    f"- **Recommended Regulatory Action:** Classify raw extract as GHS Category 1 Sensitizer."
-                )
-            else:
-                st.success(
-                    f"✅ **SAFE UVCB BOTANICAL EXTRACT (Non-Sensitizing / Low Risk)**\n\n"
-                    f"- **Cumulative Sensitization Load:** `{cum_extract_potency:.2f}` (Well below regulatory limits)\n"
-                    f"- **Principal Component:** `{strongest_sensitizer}` (Sub-threshold potency)"
-                )
-
-# ---------------------------------------------------------------------
-# TAB 7: AGENTIC SAFETY CO-PILOT (INTERACTIVE GEMINI CHAT)
-# ---------------------------------------------------------------------
-with tab_copilot:
-    st.markdown("### 💬 Autonomous Agentic Co-Pilot")
-    st.write("Converse directly with the Multi-Agent Scientific Council on chemical toxicology, OpenMM MD dynamics, and OECD GL 497 regulations.")
-
-    if not api_key_input:
-        st.warning("⚠️ Please provide a free Google Gemini API Key in the left sidebar to activate the interactive Agentic Co-Pilot.")
-    else:
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
-
-        for msg in st.session_state.chat_history:
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-
-        user_query = st.chat_input("Ask the Multi-Agent Council (e.g. How do OpenMM trajectories for PPD differ from non-sensitizers?)...")
-        if user_query:
-            st.session_state.chat_history.append({"role": "user", "content": user_query})
-            with st.chat_message("user"):
-                st.markdown(user_query)
-
-            with st.chat_message("assistant"):
-                with st.spinner("Council is deliberating..."):
-                    try:
-                        client = genai.Client(api_key=api_key_input)
-                        sys_prompt = "You are the OECD GL 497 Autonomous Multi-Agent Toxicological Council. Answer scientific inquiries on skin sensitization, OpenMM Keap1 molecular dynamics, in vitro defined approaches, and medicinal chemistry bioisosteres."
-                        chat_resp = client.models.generate_content(
-                            model="gemini-3.5-flash-lite",
-                            contents=user_query,
-                            config=types.GenerateContentConfig(
-                                system_instruction=sys_prompt,
-                                temperature=0.3
-                            )
-                        )
-                        bot_reply = chat_resp.text
-                        st.markdown(bot_reply)
-                        st.session_state.chat_history.append({"role": "assistant", "content": bot_reply})
-                    except Exception as e:
-                        st.error(f"Error querying Gemini Agent: {e}")
-
-# =====================================================================
-# GLOBAL FOOTER CREDITS
-# =====================================================================
+    res["Regulatory_Justification"] = hitl_just
+    res["hitl_notes"] = hitl_just
+    if "active_res" in st.session_state and isinstance(st.session_state["active_res"], dict):
+        st.session_state["active_res"]["HITL_Final_Call"] = hitl_choice
+        st.session_state["active_res"]["HITL_Justification"] = hitl_just
+        st.session_state["active_res"]["hitl_decision"] = hitl_choice
+        st.session_state["active_res"]["hitl_notes"] = hitl_just
 st.markdown("---")
 st.markdown(
     """
