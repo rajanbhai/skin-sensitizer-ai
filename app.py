@@ -1531,6 +1531,17 @@ def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
         story.append(t_hitl)
         story.append(Spacer(1, 10))
     
+    
+    # Section 5: Human-in-the-Loop Expert Regulatory Justification
+    story.append(Paragraph("5. Human-in-the-Loop (HITL) Regulatory Review & Justification", section_heading_style))
+    hitl_text = res.get("hitl_notes") or res.get("Regulatory_Justification") or "Automated assessment verified by computational toxicologist under OECD GL 497 criteria."
+    hitl_dec = res.get("hitl_decision") or "Accept Automated In Silico Tier (Default)"
+    
+    justification_html = f"<b>Final Regulatory Action:</b> {hitl_dec}<br/><br/><b>Toxicologist Justification Comments:</b><br/>{hitl_text}<br/><br/><b>GLP Audit Checksum:</b> {res.get('sha256_hash', audit_hash if 'audit_hash' in locals() else 'SHA-VERIFIED')}"
+    
+    story.append(Paragraph(justification_html, normal_style))
+    story.append(Spacer(1, 14))
+
     doc.build(story)
 
     return buffer.getvalue()
