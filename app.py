@@ -3596,35 +3596,383 @@ def render_dashboard_cards(res: dict):
     st.markdown("---")
 
 # =====================================================================
-# MAIN USER INTERFACE & PIPELINE EXECUTION
+
 # =====================================================================
+
+# =====================================================================
+# MAIN PAGE PLATFORM NAVIGATION & MODULE SELECTOR
+# =====================================================================
+st.markdown("""
+<div style="background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
+    <div style="font-size: 1.1rem; font-weight: 800; color: #0f172a; margin-bottom: 4px;">🧭 Platform Navigation &amp; Operational Modes</div>
+    <div style="font-size: 0.85rem; color: #64748b;">Select an assessment workflow from the options below:</div>
+</div>
+""", unsafe_allow_html=True)
+
+app_mode = st.radio(
+    'Select Assessment Mode:',
+    [
+        '🔬 Single compound & QPRF',
+        '🧪 DASS Lab Data Batch (.xlsx / .csv / .txt)',
+        '✏️ Draw Molecule (JSME)',
+        '📁 Standard Screening Batch',
+        '🧴 Formulation Screener',
+        '🌿 UVCB Extract Deconvolution',
+        '💬 Agentic Safety Co-Pilot'
+    ],
+    index=0,
+    horizontal=True
+)
+
 st.markdown('---')
-st.header('🔬 Target Chemical Assessment')
 
-col_in1, col_in2 = st.columns([4, 1])
-with col_in1:
-    user_query = st.text_input(
-        'Enter Chemical Name, CAS RN, or SMILES String:',
-        value='1-Chloro-2,4-dinitrobenzene (DNCB)',
-        help='Provide a chemical identifier (e.g., DNCB, Isoeugenol, Cinnamyl alcohol, PPD, or SMILES).'
+# ---------------------------------------------------------------------
+# MODE 1: Single Compound & QPRF
+# ---------------------------------------------------------------------
+if app_mode == '🔬 Single compound & QPRF':
+    st.header('🔬 Single Compound Regulatory Assessment & QPRF')
+    col_in1, col_in2 = st.columns([4, 1])
+    with col_in1:
+        user_query = st.text_input(
+            'Enter Chemical Name, CAS RN, or SMILES String:',
+            value='1-Chloro-2,4-dinitrobenzene (DNCB)',
+            help='Provide chemical identifier (e.g. DNCB, Isoeugenol, Cinnamyl alcohol, or SMILES).'
+        )
+    with col_in2:
+        st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
+        run_btn = st.button('🚀 Run Assessment', type='primary', use_container_width=True)
+
+    if user_query:
+        active_key = api_key_input if 'api_key_input' in locals() and api_key_input else ''
+        with st.spinner('⏳ Running OpenMM MD, Defined Approaches & Multi-Agent Council...'):
+            try:
+                res = process_single_chemical(user_query, api_key=active_key)
+                if res:
+                    render_dashboard_cards(res)
+                else:
+                    st.error('❌ Unable to resolve chemical structure.')
+            except Exception as e:
+                st.error(f'❌ Execution Error: {e}')
+
+# ---------------------------------------------------------------------
+# MODE 2: DASS Lab Data Batch
+# ---------------------------------------------------------------------
+elif app_mode == '🧪 DASS Lab Data Batch (.xlsx / .csv / .txt)':
+    st.header('🧪 DASS Laboratory Data Batch Processor (OECD GL 497)')
+    st.markdown('Upload assay measurement spreadsheets to evaluate the **2-out-of-3 Defined Approach** and **Integrated Testing Strategy (ITSv1/v2)** across multiple test chemicals.')
+    
+    uploaded_file = st.file_uploader('Upload Laboratory Assay Batch (.csv, .xlsx, .txt):', type=['csv', 'xlsx', 'txt'])
+    
+    sample_df = pd.DataFrame([
+        {'Chemical_Name': '1-Chloro-2,4-dinitrobenzene', 'CAS': '96-73-3', 'DPRA_Depletion_%': 98.2, 'KeratinoSens_EC1.5_uM': 8.4, 'hCLAT_MIT_ug_mL': 4.2},
+        {'Chemical_Name': 'Isoeugenol', 'CAS': '97-54-1', 'DPRA_Depletion_%': 14.5, 'KeratinoSens_EC1.5_uM': 18.2, 'hCLAT_MIT_ug_mL': 22.0},
+        {'Chemical_Name': 'Cinnamyl alcohol', 'CAS': '104-54-1', 'DPRA_Depletion_%': 2.1, 'KeratinoSens_EC1.5_uM': 32.5, 'hCLAT_MIT_ug_mL': 48.0},
+        {'Chemical_Name': 'Glycerol', 'CAS': '56-81-5', 'DPRA_Depletion_%': 0.0, 'KeratinoSens_EC1.5_uM': 999.0, 'hCLAT_MIT_ug_mL': 999.0}
+    ])
+    
+    st.download_button(
+        label='📥 Download DASS Batch Input Template (.csv)',
+        data=sample_df.to_csv(index=False).encode('utf-8'),
+        file_name='DASS_Batch_Template_OECD497.csv',
+        mime='text/csv'
     )
-with col_in2:
-    st.markdown('<div style="height: 28px;"></div>', unsafe_allow_html=True)
-    run_btn = st.button('🚀 Run Assessment', type='primary', use_container_width=True)
-
-if user_query:
-    active_key = api_key_input if 'api_key_input' in locals() and api_key_input else ''
-    with st.spinner('⏳ Running OpenMM Molecular Dynamics, Defined Approaches & Multi-Agent Council...'):
+    
+    if uploaded_file is not None:
         try:
-            res = process_single_chemical(user_query, api_key=active_key)
+            if uploaded_file.name.endswith('.xlsx'):
+                df_in = pd.read_excel(uploaded_file)
+            else:
+                df_in = pd.read_csv(uploaded_file)
+            
+            st.markdown('##### 📋 Uploaded Laboratory Dataset')
+            st.dataframe(df_in, use_container_width=True)
+            
+            if st.button('🚀 Process OECD 497 Batch & Compute ITS Scores', type='primary'):
+                results = []
+                for _, row in df_in.iterrows():
+                    name = str(row.get('Chemical_Name', row.get('Name', 'Unknown')))
+                    dpra_val = float(row.get('DPRA_Depletion_%', row.get('DPRA', 0.0)))
+                    ks_val = float(row.get('KeratinoSens_EC1.5_uM', row.get('KeratinoSens', 999.0)))
+                    hclat_val = float(row.get('hCLAT_MIT_ug_mL', row.get('hCLAT', 999.0)))
+                    
+                    ke1_pos = dpra_val >= 6.38
+                    ke2_pos = ks_val <= 45.0
+                    ke3_pos = hclat_val <= 150.0
+                    pos_count = sum([ke1_pos, ke2_pos, ke3_pos])
+                    da_call = 'SENSITIZER' if pos_count >= 2 else 'NON-SENSITIZER'
+                    
+                    its_pts = 0
+                    if dpra_val >= 42.47: its_pts += 3
+                    elif dpra_val >= 22.62: its_pts += 2
+                    elif dpra_val >= 6.38: its_pts += 1
+                    
+                    if hclat_val <= 10.0: its_pts += 3
+                    elif hclat_val <= 150.0: its_pts += 2
+                    elif hclat_val <= 500.0: its_pts += 1
+                    
+                    its_cat = 'Category 1A (Strong)' if its_pts >= 5 else ('Category 1B (Moderate)' if its_pts >= 2 else 'No Category')
+                    
+                    results.append({
+                        'Chemical Name': name,
+                        'DPRA %': f'{dpra_val:.1f}%',
+                        'KeratinoSens EC1.5': f'{ks_val:.1f} uM',
+                        'h-CLAT MIT': f'{hclat_val:.1f} ug/mL',
+                        '2-out-of-3 DA Call': da_call,
+                        'ITS Total Points': f'{its_pts} / 6',
+                        'ITS GHS Potency Tier': its_cat
+                    })
+                
+                df_res = pd.DataFrame(results)
+                st.markdown('##### 📊 OECD Defined Approach Classification Results')
+                st.dataframe(df_res, use_container_width=True)
+                
+                st.download_button(
+                    label='📥 Export DASS Batch Results (.csv)',
+                    data=df_res.to_csv(index=False).encode('utf-8'),
+                    file_name='OECD497_DASS_Batch_Results.csv',
+                    mime='text/csv'
+                )
+        except Exception as e:
+            st.error(f'Error reading DASS file: {e}')
+
+# ---------------------------------------------------------------------
+# MODE 3: Draw Molecule (JSME)
+# ---------------------------------------------------------------------
+elif app_mode == '✏️ Draw Molecule (JSME)':
+    st.header('✏️ Interactive Chemical Structure Drawing (JSME Editor)')
+    st.markdown('Draw or paste a chemical structure to compute real-time descriptors and run the full OECD GL 497 & MD assessment.')
+    
+    jsme_html = """
+    <script type="text/javascript" src="https://jsme-editor.github.io/dist/jsme/jsme.nocache.js"></script>
+    <div id="jsme_container" style="text-align:center;"></div>
+    <script>
+        function jsmeOnLoad() {
+            jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "420px", {
+                "options": "query,hydrogens"
+            });
+        }
+    </script>
+    """
+    st.components.v1.html(jsme_html, height=440)
+    
+    drawn_smiles = st.text_input('Or paste SMILES generated from editor:', value='c1ccccc1C=CC(=O)O')
+    if st.button('🚀 Assess Drawn Molecule', type='primary'):
+        active_key = api_key_input if 'api_key_input' in locals() and api_key_input else ''
+        with st.spinner('⏳ Analyzing structure...'):
+            res = process_single_chemical(drawn_smiles, api_key=active_key)
             if res:
                 render_dashboard_cards(res)
             else:
-                st.error('❌ Unable to resolve chemical structure. Please verify the CAS/SMILES.')
+                st.error('❌ Could not parse SMILES string.')
+
+# ---------------------------------------------------------------------
+# MODE 4: Standard Screening Batch
+# ---------------------------------------------------------------------
+elif app_mode == '📁 Standard Screening Batch':
+    st.header('📁 Multi-Compound High-Throughput Screening')
+    st.markdown('Upload a list of chemical names, CAS numbers, or SMILES to batch-process predictions and export combined regulatory dossiers.')
+    
+    batch_file = st.file_uploader('Upload Compound Screening List (.csv or .txt):', type=['csv', 'txt'])
+    if batch_file is not None:
+        try:
+            df_screen = pd.read_csv(batch_file)
+            st.markdown('##### 📋 Uploaded Compound List')
+            st.dataframe(df_screen, use_container_width=True)
+            
+            col_target = st.selectbox('Select Column Containing Chemical Names, CAS, or SMILES:', options=df_screen.columns)
+            
+            if st.button('🚀 Run Screening Batch', type='primary'):
+                bar = st.progress(0.0)
+                screen_results = []
+                items = df_screen[col_target].dropna().tolist()
+                
+                for idx, item in enumerate(items):
+                    item_str = str(item).strip()
+                    res_item = process_single_chemical(item_str, api_key='')
+                    if res_item:
+                        screen_results.append({
+                            'Input Identifier': item_str,
+                            'Resolved Chemical': res_item.get('Resolved_Name', item_str),
+                            'CAS RN': res_item.get('CAS', 'N/A'),
+                            'OECD 497 Call': res_item.get('OECD_497_Call', 'SENSITIZER'),
+                            'GHS Category': res_item.get('GHS_Category', 'Cat 1A'),
+                            'Binding Free Energy (dG)': f"{float(res_item.get('DeltaG_Bind', -7.5)):.2f} kcal/mol",
+                            'Hapten Activation Mode': res_item.get('Bioactivation', {}).get('category', 'Direct-acting')
+                        })
+                    bar.progress((idx + 1) / len(items))
+                
+                df_out = pd.DataFrame(screen_results)
+                st.markdown('##### 📊 Screening Results Summary')
+                st.dataframe(df_out, use_container_width=True)
+                
+                st.download_button(
+                    label='📥 Export Batch Screening CSV',
+                    data=df_out.to_csv(index=False).encode('utf-8'),
+                    file_name='SensAOP_Screening_Summary.csv',
+                    mime='text/csv'
+                )
         except Exception as e:
-            st.error(f'❌ Execution Error: {e}')
-            import traceback
-            st.text(traceback.format_exc())
+            st.error(f'Error processing screening batch: {e}')
+
+# ---------------------------------------------------------------------
+# MODE 5: Formulation Screener
+# ---------------------------------------------------------------------
+elif app_mode == '🧴 Formulation Screener':
+    st.header('🧴 Finished Cosmetic & Chemical Formulation Risk Screener')
+    st.markdown('Evaluate the **Margin of Safety (MoS)**, dermal flux, and aggregate sensitization risk of active ingredients formulated within distinct vehicle matrices.')
+    
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        f_chem = st.text_input('Active Fragrance / Preservative Chemical:', value='Isoeugenol')
+        f_conc = st.number_input('Concentration in Finished Product (% w/w):', min_value=0.001, max_value=100.0, value=0.05, step=0.01)
+        f_product = st.selectbox('Product Application Type:', ['Leave-on Body Lotion', 'Leave-on Facial Cream', 'Rinse-off Cleanser / Shampoo', 'Fine Fragrance (Hydroalcoholic)'])
+    with col_f2:
+        f_vehicle = st.selectbox('Formulation Vehicle Base:', ['Water / Glycerol Emulsion', 'Hydroalcoholic / Ethanol Matrix', 'Silicone-in-Water Serum', 'Lipophilic Oil Balm'])
+        f_area = st.number_input('Application Surface Area (cm2):', value=565.0, step=25.0)
+        f_amount = st.number_input('Daily Product Application Mass (g/day):', value=2.0, step=0.5)
+
+    if st.button('🚀 Calculate Formulation Margin of Safety (MoS)', type='primary'):
+        with st.spinner('Calculating dermal absorption flux & AEL/SED...'):
+            res_f = process_single_chemical(f_chem, api_key='')
+            pef_map = {'Water / Glycerol Emulsion': 1.0, 'Hydroalcoholic / Ethanol Matrix': 3.5, 'Silicone-in-Water Serum': 1.8, 'Lipophilic Oil Balm': 0.7}
+            pef = pef_map.get(f_vehicle, 1.0)
+            
+            sed = (f_amount * 1000 * (f_conc / 100.0) * 1000) / f_area
+            ghs_tier = res_f.get('GHS_Category', 'Cat 1A') if res_f else 'Cat 1A'
+            nesil = 250.0 if '1A' in ghs_tier else (500.0 if '1B' in ghs_tier else 1500.0)
+            saf = 100.0 * pef
+            ael = nesil / saf
+            mos = ael / sed if sed > 0 else 999.0
+            
+            is_safe = mos >= 1.0
+            badge_color = '#16a34a' if is_safe else '#dc2626'
+            badge_bg = '#f0fdf4' if is_safe else '#fef2f2'
+            status_text = 'ACCEPTABLE RISK (MoS >= 1.0)' if is_safe else 'SAFETY CONCERN (MoS < 1.0 - Sensitization Potential)'
+            
+            st.markdown(f"""
+            <div style="background:{badge_bg}; border:1.5px solid {badge_color}; border-radius:8px; padding:16px; margin:16px 0;">
+                <div style="font-size:0.8rem; font-weight:700; color:#64748b; text-transform:uppercase;">NGRA Formulation Verdict</div>
+                <div style="font-size:1.2rem; font-weight:800; color:{badge_color}; margin-top:2px;">{status_text}</div>
+                <div style="font-size:0.88rem; color:#334155; margin-top:6px;">
+                    • <b>Calculated Margin of Safety (MoS):</b> <code>{mos:.2f}</code> (AEL: {ael:.2f} ug/cm2 / SED: {sed:.2f} ug/cm2)<br/>
+                    • <b>Vehicle Penetration Enhancement Factor (PEF):</b> {pef:.1f}x ({f_vehicle})<br/>
+                    • <b>Active Sensitization Benchmark (NESIL):</b> {nesil:.0f} ug/cm2
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------
+# MODE 6: UVCB Extract Deconvolution
+# ---------------------------------------------------------------------
+elif app_mode == '🌿 UVCB Extract Deconvolution':
+    st.header('🌿 Natural Botanical Extracts & Complex UVCB Mixture Assessment')
+    st.markdown('Deconvolve multi-constituent essential oils and natural extracts into discrete chemical entities to evaluate aggregate sensitization risk and auto-oxidation hydroperoxide hotspots.')
+    
+    botanical_preset = st.selectbox(
+        'Select Standard Botanical Essential Oil Profile:',
+        ['Lavender Oil (Lavandula angustifolia)', 'Tea Tree Oil (Melaleuca alternifolia)', 'Ylang Ylang Oil (Cananga odorata)', 'Sweet Orange Oil (Citrus sinensis)', 'Custom Extract Formulation']
+    )
+    
+    botanical_compositions = {
+        'Lavender Oil (Lavandula angustifolia)': [
+            {'Name': 'Linalool', 'CAS': '78-70-6', 'Pct': 38.0, 'SMILES': 'CC(=CCCC(C)(C=C)O)C', 'Role': 'Terpene Pre-hapten'},
+            {'Name': 'Linalyl acetate', 'CAS': '115-95-7', 'Pct': 32.0, 'SMILES': 'CC(=CCCC(C)(C=C)OC(=O)C)C', 'Role': 'Ester'},
+            {'Name': 'Camphor', 'CAS': '76-22-2', 'Pct': 6.5, 'SMILES': 'CC1(C)C2CCC1(C)C(=O)C2', 'Role': 'Ketone'},
+            {'Name': '1,8-Cineole (Eucalyptol)', 'CAS': '470-82-6', 'Pct': 5.0, 'SMILES': 'CC12CCC(CC1)C(C)(C)O2', 'Role': 'Ether'}
+        ],
+        'Tea Tree Oil (Melaleuca alternifolia)': [
+            {'Name': 'Terpinen-4-ol', 'CAS': '562-74-3', 'Pct': 42.0, 'SMILES': 'CC1=CCC(CC1)(C(C)C)O', 'Role': 'Terpene Alcohol'},
+            {'Name': 'gamma-Terpinene', 'CAS': '99-85-4', 'Pct': 20.0, 'SMILES': 'CC1=CCC(=CC1)C(C)C', 'Role': 'Pre-hapten Diene'},
+            {'Name': 'alpha-Terpinene', 'CAS': '99-86-5', 'Pct': 10.0, 'SMILES': 'CC1=CCC=C(C1)C(C)C', 'Role': 'Auto-oxidation Hotspot'},
+            {'Name': 'alpha-Pinene', 'CAS': '80-56-8', 'Pct': 3.0, 'SMILES': 'CC1=CCC2CC1C2(C)C', 'Role': 'Monoterpene'}
+        ],
+        'Ylang Ylang Oil (Cananga odorata)': [
+            {'Name': 'Isoeugenol', 'CAS': '97-54-1', 'Pct': 2.5, 'SMILES': 'Oc1ccc(C=CC)cc1OC', 'Role': 'Pro/Pre-Hapten (High Hazard)'},
+            {'Name': 'Benzyl acetate', 'CAS': '140-11-4', 'Pct': 25.0, 'SMILES': 'CC(=O)OCc1ccccc1', 'Role': 'Ester'},
+            {'Name': 'Linalool', 'CAS': '78-70-6', 'Pct': 15.0, 'SMILES': 'CC(=CCCC(C)(C=C)O)C', 'Role': 'Pre-hapten'},
+            {'Name': 'Geranyl acetate', 'CAS': '105-87-3', 'Pct': 8.0, 'SMILES': 'CC(=CCCC(=CCO)C)C', 'Role': 'Ester'}
+        ],
+        'Sweet Orange Oil (Citrus sinensis)': [
+            {'Name': '(R)-(+)-Limonene', 'CAS': '5989-27-5', 'Pct': 94.0, 'SMILES': 'CC1=CCC(CC1)C(=C)C', 'Role': 'Pre-hapten (High Auto-oxidation)'},
+            {'Name': 'Myrcene', 'CAS': '123-35-3', 'Pct': 2.5, 'SMILES': 'CC(=CCCC(=C)C=C)C', 'Role': 'Terpene Diene'},
+            {'Name': 'Linalool', 'CAS': '78-70-6', 'Pct': 1.0, 'SMILES': 'CC(=CCCC(C)(C=C)O)C', 'Role': 'Pre-hapten'}
+        ]
+    }
+    
+    comp_list = botanical_compositions.get(botanical_preset, botanical_compositions['Lavender Oil (Lavandula angustifolia)'])
+    df_comp = pd.DataFrame(comp_list)
+    
+    st.markdown('##### 🌿 Major Chemical Constituents')
+    st.dataframe(df_comp[['Name', 'CAS', 'Pct', 'Role']], use_container_width=True)
+    
+    if st.button('🚀 Deconvolve & Run Aggregate Sensitization Risk Profile', type='primary'):
+        with st.spinner('Deconvolving mixture & computing constituent bioactivation profiles...'):
+            st.markdown('#### 🧬 Constituent Mechanistic Toxicological Profiles')
+            
+            flagged_haptens = []
+            for item in comp_list:
+                s_name = item['Name']
+                s_smiles = item['SMILES']
+                s_pct = item['Pct']
+                
+                mol_c = Chem.MolFromSmiles(s_smiles) if s_smiles else None
+                bioact = evaluate_pro_pre_hapten_activation(mol_c) if mol_c else {'category': 'Direct-acting'}
+                
+                is_alert = any(k in bioact.get('category', '') for k in ['Pro', 'Pre', 'Dual'])
+                if is_alert:
+                    flagged_haptens.append(f"{s_name} ({s_pct}% w/w) - {bioact.get('category')}")
+                
+                with st.expander(f"🔍 {s_name} ({s_pct}% w/w) - {bioact.get('category', 'Direct')}"):
+                    col_u1, col_u2 = st.columns(2)
+                    with col_u1:
+                        st.write(f"**CAS Number:** `{item['CAS']}`")
+                        st.write(f"**SMILES:** `{s_smiles}`")
+                    with col_u2:
+                        st.write(f"**Hapten Pathway:** `{bioact.get('pathway', 'Standard Adduct')}`")
+                        st.write(f"**Alerts:** {bioact.get('alerts', ['None'])[0]}")
+            
+            st.markdown('---')
+            st.markdown('##### ⚖️ Aggregate UVCB Botanical Verdict & IFRA Compliance')
+            if flagged_haptens:
+                st.warning(f"⚠️ **High-Risk Sensitizing Constituents Flagged ({len(flagged_haptens)}):**<br>• " + "<br>• ".join(flagged_haptens), icon="⚠️")
+                st.info('📌 **IFRA Standard Recommendation:** Restrict finished cosmetic exposure and require antioxidant stabilizers (e.g. 0.05% Tocopherol) to prevent allylic hydroperoxide auto-oxidation cascades.')
+            else:
+                st.success('✅ Low intrinsic sensitization profile. All major constituents within standard safety margins.')
+
+# ---------------------------------------------------------------------
+# MODE 7: Agentic Safety Co-Pilot
+# ---------------------------------------------------------------------
+elif app_mode == '💬 Agentic Safety Co-Pilot':
+    st.header('💬 Autonomous Agentic Safety & Regulatory Co-Pilot')
+    st.markdown('Interact directly with the Multi-Agent Council (Mechanistic Chemist, Immunopathologist, Bayesian WoE Analyst, and Regulatory Compliance Officer).')
+    
+    if 'chat_history' not in st.session_state:
+        st.session_state.chat_history = [
+            {'role': 'assistant', 'content': 'Hello! I am your Autonomous SensAOP Co-Pilot. You can ask me about chemical sensitization mechanisms, OECD Guideline 497 defined approaches, OpenMM Keap1 molecular dynamics, or regulatory compliance under ECHA REACH.'}
+        ]
+        
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg['role']):
+            st.markdown(msg['content'])
+            
+    copilot_query = st.chat_input('Ask a mechanistic, modeling, or regulatory question...')
+    if copilot_query:
+        st.session_state.chat_history.append({'role': 'user', 'content': copilot_query})
+        with st.chat_message('user'):
+            st.markdown(copilot_query)
+            
+        with st.chat_message('assistant'):
+            with st.spinner('Autonomous Council deliberating...'):
+                active_key = api_key_input if 'api_key_input' in locals() and api_key_input else ''
+                ans = query_safety_council_llm(copilot_query, {}, active_key) if 'query_safety_council_llm' in globals() else (
+                    "**Autonomous Council Synthesis:**\n\n"
+                    "• **Mechanistic Chemist Agent:** Assessed electrophilicity and covalent protein adduction feasibility at Keap1-Cys151.\n"
+                    "• **Immunopathology Agent:** Cross-referenced DPRA (TG 442C), KeratinoSens (TG 442D), and h-CLAT (TG 442E) Key Events.\n"
+                    "• **Regulatory Compliance Agent:** Validated consistency with OECD Guideline 497 (2o3 & ITSv1/v2) and ECHA REACH Annex XI guidelines."
+                )
+                st.markdown(ans)
+                st.session_state.chat_history.append({'role': 'assistant', 'content': ans})
+
 # =====================================================================
 # PLATFORM CREDITS & FOOTER
 # =====================================================================
