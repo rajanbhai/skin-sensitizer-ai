@@ -1,10 +1,10 @@
 streamlit
-google-generativeai
 rdkit
-scikit-learn
-pandas
-numpy
-torch
-transformers
 reportlab
-python-dotenv
+plotly
+numpy
+pandas
+openpyxl
+matplotlib
+google-generativeai
+scikit-learn
