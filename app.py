@@ -1289,10 +1289,13 @@ def update_hitl_state():
                 st.session_state["active_res"]["Regulatory_Justification"] = val_just
 
 def render_hitl_panel(res: dict):
-    """Single authoritative Human-in-the-Loop review panel with permanent state persistence."""
+    """Single authoritative Human-in-the-Loop review panel with stable state persistence."""
     st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
     
-    s_key = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", "mol")))[:32]
+    # Deterministic compound key
+    safe_id = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", res.get("Input", "default_cmp"))))[:28]
+    choice_k = f"k_hitl_choice_{safe_id}"
+    just_k = f"k_hitl_just_{safe_id}"
     
     decision_options = [
         "Accept Automated In Silico Tier (Default)",
@@ -1304,32 +1307,26 @@ def render_hitl_panel(res: dict):
     
     default_text = "Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
     
-    if f"hitl_choice_{s_key}" not in st.session_state:
-        st.session_state[f"hitl_choice_{s_key}"] = decision_options[0]
-    if f"hitl_just_{s_key}" not in st.session_state:
-        st.session_state[f"hitl_just_{s_key}"] = default_text
+    # Initialize session state once per molecule
+    if choice_k not in st.session_state:
+        st.session_state[choice_k] = decision_options[0]
+    if just_k not in st.session_state:
+        st.session_state[just_k] = default_text
         
-    cur_choice = st.session_state[f"hitl_choice_{s_key}"]
-    idx = decision_options.index(cur_choice) if cur_choice in decision_options else 0
-    
+    # Render selectbox and text_area using ONLY the key attribute
     hitl_choice = st.selectbox(
         "Final Regulatory Potency Decision:",
         decision_options,
-        index=idx,
-        key=f"widget_choice_{s_key}"
+        key=choice_k
     )
     
     hitl_just = st.text_area(
         "Expert Toxicologist Regulatory Rationale / Justification:",
-        value=st.session_state[f"hitl_just_{s_key}"],
-        key=f"widget_just_{s_key}",
+        key=just_k,
         height=95
     )
     
-    # Store directly in session state and res dictionary
-    st.session_state[f"hitl_choice_{s_key}"] = hitl_choice
-    st.session_state[f"hitl_just_{s_key}"] = hitl_just
-    
+    # Mirror values to result dict and session state for export generators
     res["HITL_Override_Applied"] = True
     res["HITL_Final_Call"] = hitl_choice
     res["hitl_decision"] = hitl_choice
