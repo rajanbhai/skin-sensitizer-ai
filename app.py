@@ -1274,14 +1274,28 @@ def evaluate_borderline_conflict(res: dict) -> dict:
         "scenarios": scenarios
     }
 
+def update_hitl_state():
+    """Callback executed instantly whenever user types in the text area or changes dropdown."""
+    if "active_smi_key" in st.session_state:
+        s_key = st.session_state["active_smi_key"]
+        val_choice = st.session_state.get(f"widget_choice_{s_key}")
+        val_just = st.session_state.get(f"widget_just_{s_key}")
+        if val_choice:
+            st.session_state[f"saved_choice_{s_key}"] = val_choice
+        if val_just is not None:
+            st.session_state[f"saved_just_{s_key}"] = val_just
+            if "active_res" in st.session_state and isinstance(st.session_state["active_res"], dict):
+                st.session_state["active_res"]["HITL_Justification"] = val_just
+                st.session_state["active_res"]["Regulatory_Justification"] = val_just
+
 def render_hitl_panel(res: dict):
     st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
-    # 1. Generate a STABLE, deterministic key per compound (never random/timestamp)
-    safe_smi = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", "mol")))[:32]
-    choice_key = f"hitl_choice_state_{safe_smi}"
-    just_key = f"hitl_just_state_{safe_smi}"
     
-    # 2. Options list
+    # Static compound signature
+    raw_smi = str(res.get("SMILES", res.get("Input", "default_mol")))
+    s_key = re.sub(r"[^a-zA-Z0-9]", "_", raw_smi)[:32]
+    st.session_state["active_smi_key"] = s_key
+    
     decision_options = [
         "Accept Automated In Silico Tier (Default)",
         "Override -> GHS Category 1A (Extreme/Strong Sensitizer)",
@@ -1290,41 +1304,45 @@ def render_hitl_panel(res: dict):
         "Flag for Tier-2 In Vitro Testing (OECD 442C/D/E)"
     ]
     
-    # 3. Persistent Initialization (only runs once per molecule)
-    if choice_key not in st.session_state:
-        st.session_state[choice_key] = decision_options[0]
+    default_text = "Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
+    
+    # Initialize persistent state once per compound
+    if f"saved_choice_{s_key}" not in st.session_state:
+        st.session_state[f"saved_choice_{s_key}"] = decision_options[0]
+    if f"saved_just_{s_key}" not in st.session_state:
+        st.session_state[f"saved_just_{s_key}"] = default_text
         
-    default_text = f"Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
-    if just_key not in st.session_state:
-        st.session_state[just_key] = default_text
-
-    # 4. Bind widgets directly to persistent keys
-    cur_choice_idx = decision_options.index(st.session_state[choice_key]) if st.session_state[choice_key] in decision_options else 0
+    saved_choice = st.session_state[f"saved_choice_{s_key}"]
+    saved_just = st.session_state[f"saved_just_{s_key}"]
+    
+    idx = decision_options.index(saved_choice) if saved_choice in decision_options else 0
+    
     hitl_choice = st.selectbox(
         "Final Regulatory Potency Decision:",
         decision_options,
-        index=cur_choice_idx,
-        key=choice_key
+        index=idx,
+        key=f"widget_choice_{s_key}",
+        on_change=update_hitl_state
     )
     
     hitl_just = st.text_area(
         "Expert Toxicologist Regulatory Rationale / Justification:",
-        key=just_key,
-        height=95
+        value=saved_just,
+        height=95,
+        key=f"widget_just_{s_key}",
+        on_change=update_hitl_state
     )
     
-    # 5. Mirror user edits to all result dictionary keys for PDF and UI consistency
+    # Keep current session values synchronized
+    st.session_state[f"saved_choice_{s_key}"] = hitl_choice
+    st.session_state[f"saved_just_{s_key}"] = hitl_just
+    
     res["HITL_Override_Applied"] = True
     res["HITL_Final_Call"] = hitl_choice
     res["hitl_decision"] = hitl_choice
     res["HITL_Justification"] = hitl_just
     res["Regulatory_Justification"] = hitl_just
     res["hitl_notes"] = hitl_just
-    if "active_res" in st.session_state and isinstance(st.session_state["active_res"], dict):
-        st.session_state["active_res"]["HITL_Final_Call"] = hitl_choice
-        st.session_state["active_res"]["HITL_Justification"] = hitl_just
-        st.session_state["active_res"]["hitl_decision"] = hitl_choice
-        st.session_state["active_res"]["hitl_notes"] = hitl_just
 def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
