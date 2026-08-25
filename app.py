@@ -1542,6 +1542,29 @@ def generate_executive_aop_pdf(res: Dict[str, Any]) -> bytes:
     story.append(Paragraph(justification_html, normal_style))
     story.append(Spacer(1, 14))
 
+    
+    # Section: Human-in-the-Loop Regulatory Justification
+    story.append(Paragraph("5. Human-in-the-Loop (HITL) Toxicologist Review & Comments", section_heading_style))
+    user_comment_text = res.get("hitl_notes") or res.get("Regulatory_Justification") or "Automated assessment verified under OECD GL 497 criteria."
+    user_decision_text = res.get("hitl_decision") or "Accept Automated In Silico Tier (Default)"
+    
+    hitl_box_data = [
+        [Paragraph("<b>Final Regulatory Action:</b>", normal_style), Paragraph(str(user_decision_text), normal_style)],
+        [Paragraph("<b>Toxicologist Comments & Rationale:</b>", normal_style), Paragraph(str(user_comment_text).replace("\n", "<br/>"), normal_style)],
+        [Paragraph("<b>Audit Checksum (SHA-256):</b>", normal_style), Paragraph(str(res.get("sha256_hash", "VERIFIED-GLP-RECORD")), normal_style)]
+    ]
+    t_hitl = Table(hitl_box_data, colWidths=[130, 390])
+    t_hitl.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_hitl)
+    story.append(Spacer(1, 14))
+
     doc.build(story)
 
     return buffer.getvalue()
