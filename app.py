@@ -2268,22 +2268,29 @@ def resolve_chemical_input(input_str: str) -> Tuple[str, str, Optional[Any]]:
     return val, "", None
 
 
-def generate_mol_2d_image(smiles_str: str) -> Optional[bytes]:
-    """Generates standard PNG bytes from SMILES using RDKit Draw."""
-    if not smiles_str:
+def generate_mol_2d_image(smiles_str: str) -> Optional[str]:
+    """Generates clean SVG markup from SMILES using RDKit (No Cairo dependency required)."""
+    if not smiles_str or not isinstance(smiles_str, str):
         return None
     try:
         from rdkit import Chem
-        from rdkit.Chem import Draw
+        from rdkit.Chem import rdDepictor
+        from rdkit.Chem.Draw import rdMolDraw2D
+        
         mol = Chem.MolFromSmiles(smiles_str.strip())
         if not mol:
             return None
-        img = Draw.MolToImage(mol, size=(350, 240))
-        buf = io.BytesIO()
-        img.save(buf, format='PNG')
-        return buf.getvalue()
+            
+        rdDepictor.Compute2DCoords(mol)
+        drawer = rdMolDraw2D.MolDraw2DSVG(340, 250)
+        opts = drawer.drawOptions()
+        opts.clearBackground = True
+        rdMolDraw2D.PrepareAndDrawMolecule(drawer, mol)
+        drawer.FinishDrawing()
+        return drawer.GetDrawingText()
     except Exception:
         return None
+
 
 # =============================================================================
 # CALIBRATED BIOACTIVATION, QM/MM KINETICS & OECD GL 497 ENGINES
