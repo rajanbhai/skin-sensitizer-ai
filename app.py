@@ -1289,12 +1289,10 @@ def update_hitl_state():
                 st.session_state["active_res"]["Regulatory_Justification"] = val_just
 
 def render_hitl_panel(res: dict):
+    """Single authoritative Human-in-the-Loop review panel with permanent state persistence."""
     st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
     
-    # Static compound signature
-    raw_smi = str(res.get("SMILES", res.get("Input", "default_mol")))
-    s_key = re.sub(r"[^a-zA-Z0-9]", "_", raw_smi)[:32]
-    st.session_state["active_smi_key"] = s_key
+    s_key = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", "mol")))[:32]
     
     decision_options = [
         "Accept Automated In Silico Tier (Default)",
@@ -1306,36 +1304,31 @@ def render_hitl_panel(res: dict):
     
     default_text = "Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
     
-    # Initialize persistent state once per compound
-    if f"saved_choice_{s_key}" not in st.session_state:
-        st.session_state[f"saved_choice_{s_key}"] = decision_options[0]
-    if f"saved_just_{s_key}" not in st.session_state:
-        st.session_state[f"saved_just_{s_key}"] = default_text
+    if f"hitl_choice_{s_key}" not in st.session_state:
+        st.session_state[f"hitl_choice_{s_key}"] = decision_options[0]
+    if f"hitl_just_{s_key}" not in st.session_state:
+        st.session_state[f"hitl_just_{s_key}"] = default_text
         
-    saved_choice = st.session_state[f"saved_choice_{s_key}"]
-    saved_just = st.session_state[f"saved_just_{s_key}"]
-    
-    idx = decision_options.index(saved_choice) if saved_choice in decision_options else 0
+    cur_choice = st.session_state[f"hitl_choice_{s_key}"]
+    idx = decision_options.index(cur_choice) if cur_choice in decision_options else 0
     
     hitl_choice = st.selectbox(
         "Final Regulatory Potency Decision:",
         decision_options,
         index=idx,
-        key=f"widget_choice_{s_key}",
-        on_change=update_hitl_state
+        key=f"widget_choice_{s_key}"
     )
     
     hitl_just = st.text_area(
         "Expert Toxicologist Regulatory Rationale / Justification:",
-        value=saved_just,
-        height=95,
+        value=st.session_state[f"hitl_just_{s_key}"],
         key=f"widget_just_{s_key}",
-        on_change=update_hitl_state
+        height=95
     )
     
-    # Keep current session values synchronized
-    st.session_state[f"saved_choice_{s_key}"] = hitl_choice
-    st.session_state[f"saved_just_{s_key}"] = hitl_just
+    # Store directly in session state and res dictionary
+    st.session_state[f"hitl_choice_{s_key}"] = hitl_choice
+    st.session_state[f"hitl_just_{s_key}"] = hitl_just
     
     res["HITL_Override_Applied"] = True
     res["HITL_Final_Call"] = hitl_choice
@@ -2109,7 +2102,7 @@ def process_single_chemical(
         "Heatmap_PNG": heatmap_bytes
     }
 
-    render_hitl_panel(res_dict)
+    # render_hitl_panel consolidated in Section 6
 
 
     llm_synthesis = AutonomousGeminiCouncil.consult_council(res_dict, api_key)
@@ -3360,57 +3353,8 @@ def render_dashboard_cards(res: dict):
         st.dataframe(pd.DataFrame(ana_rows), use_container_width=True, hide_index=True)
 
     # Expert HITL Adjudication Panel
-    st.markdown("### ⚖️ Expert Human-in-the-Loop (HITL) Regulatory Review")
-    # 1. Generate a STABLE, deterministic key per compound (never random/timestamp)
-    safe_smi = re.sub(r"[^a-zA-Z0-9]", "_", str(res.get("SMILES", "mol")))[:32]
-    choice_key = f"hitl_choice_state_{safe_smi}"
-    just_key = f"hitl_just_state_{safe_smi}"
-    
-    # 2. Options list
-    decision_options = [
-        "Accept Automated In Silico Tier (Default)",
-        "Override -> GHS Category 1A (Extreme/Strong Sensitizer)",
-        "Override -> GHS Category 1B (Moderate/Weak Sensitizer)",
-        "Override -> Not Classified (Non-Sensitizer)",
-        "Flag for Tier-2 In Vitro Testing (OECD 442C/D/E)"
-    ]
-    
-    # 3. Persistent Initialization (only runs once per molecule)
-    if choice_key not in st.session_state:
-        st.session_state[choice_key] = decision_options[0]
-        
-    default_text = f"Automated assessment confirmed via OECD GL 497 defined approach. Chemical space evaluation indicates high model applicability. Mechanistic Keap1-Cys151 OpenMM trajectory corroborates covalent binding plausibility."
-    if just_key not in st.session_state:
-        st.session_state[just_key] = default_text
-
-    # 4. Bind widgets directly to persistent keys
-    cur_choice_idx = decision_options.index(st.session_state[choice_key]) if st.session_state[choice_key] in decision_options else 0
-    hitl_choice = st.selectbox(
-        "Final Regulatory Potency Decision:",
-        decision_options,
-        index=cur_choice_idx,
-        key=choice_key
-    )
-    
-    hitl_just = st.text_area(
-        "Expert Toxicologist Regulatory Rationale / Justification:",
-        key=just_key,
-        height=95
-    )
-    
-    # 5. Mirror user edits to all result dictionary keys for PDF and UI consistency
-    res["HITL_Override_Applied"] = True
-    res["HITL_Final_Call"] = hitl_choice
-    res["hitl_decision"] = hitl_choice
-    res["HITL_Justification"] = hitl_just
-    res["Regulatory_Justification"] = hitl_just
-    res["hitl_notes"] = hitl_just
-    if "active_res" in st.session_state and isinstance(st.session_state["active_res"], dict):
-        st.session_state["active_res"]["HITL_Final_Call"] = hitl_choice
-        st.session_state["active_res"]["HITL_Justification"] = hitl_just
-        st.session_state["active_res"]["hitl_decision"] = hitl_choice
-        st.session_state["active_res"]["hitl_notes"] = hitl_just
-st.markdown("---")
+    render_hitl_panel(res)
+    st.markdown("---")
 st.markdown(
     """
     <div style="text-align: center; padding: 18px 0; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0; margin-top: 30px;">
